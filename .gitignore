@@ -1,0 +1,12 @@
+# 生成的截图输出
+output/*.png
+output/*.jpg
+
+# 临时文件
+_test_*
+__pycache__/
+*.pyc
+.DS_Store
+
+# 素材配置保留
+!output/.gitkeep

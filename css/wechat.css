@@ -1,0 +1,205 @@
+/* 微信聊天界面样式 - 支持12种手机型号 */
+:root {
+  --bg-color: #ededed;
+  --bubble-mine: #95ec69;
+  --bubble-other: #ffffff;
+  --nav-bg: #ededed;
+  --time-color: #b2b2b2;
+  --divider: #d9d9d9;
+  --nav-height: 44px;
+  --statusbar-height: 44px;
+  --inputbar-height: 56px;
+  --avatar-size: 40px;
+  --font-size: 17px;
+  --bubble-radius: 8px;
+  --bubble-padding: 10px 14px;
+  --gap-vertical: 16px;
+  --font-family: -apple-system, "PingFang SC", "Helvetica Neue", "Microsoft YaHei", sans-serif;
+}
+
+.phone-frame {
+  position: relative;
+  width: 393px;
+  height: 852px;
+  margin: 0 auto;
+  background: var(--bg-color);
+  overflow: hidden;
+  font-family: var(--font-family);
+}
+
+.status-bar {
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: var(--statusbar-height);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 20px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #000;
+  z-index: 100;
+}
+.status-bar .time { flex: 0 0 auto; }
+.status-bar .status-icons { display: flex; align-items: center; gap: 5px; }
+.status-bar .signal-icon { display: flex; gap: 2px; align-items: flex-end; }
+.status-bar .signal-icon span { width: 3px; background: #000; border-radius: 1px; }
+.status-bar .signal-icon span:nth-child(1) { height: 4px; }
+.status-bar .signal-icon span:nth-child(2) { height: 7px; }
+.status-bar .signal-icon span:nth-child(3) { height: 10px; }
+.status-bar .signal-icon span:nth-child(4) { height: 13px; }
+
+.nav-bar {
+  position: absolute;
+  top: var(--statusbar-height);
+  left: 0; right: 0;
+  height: var(--nav-height);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0 10px;
+  background: var(--nav-bg);
+  border-bottom: 0.5px solid var(--divider);
+  z-index: 90;
+}
+.nav-bar .nav-back { font-size: 22px; color: #000; padding: 5px; }
+.nav-bar .nav-title { font-size: 17px; font-weight: 600; color: #000; }
+.nav-bar .nav-more { font-size: 20px; color: #000; padding: 5px; letter-spacing: 2px; }
+
+.chat-area {
+  position: absolute;
+  top: calc(var(--statusbar-height) + var(--nav-height));
+  bottom: var(--inputbar-height);
+  left: 0; right: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 15px 10px;
+  background: var(--bg-color);
+}
+
+.time-stamp {
+  text-align: center;
+  color: var(--time-color);
+  font-size: 12px;
+  margin: 10px 0;
+}
+
+.msg-row { display: flex; align-items: flex-start; margin-bottom: var(--gap-vertical); }
+.msg-row.mine { flex-direction: row-reverse; }
+.msg-row.other { flex-direction: row; }
+
+.msg-avatar {
+  width: var(--avatar-size);
+  height: var(--avatar-size);
+  border-radius: 4px;
+  overflow: hidden;
+  flex-shrink: 0;
+  background: #ddd;
+}
+.msg-avatar img { width: 100%; height: 100%; object-fit: cover; }
+
+.msg-bubble {
+  max-width: 65%;
+  padding: var(--bubble-padding);
+  font-size: var(--font-size);
+  line-height: 1.4;
+  position: relative;
+  word-wrap: break-word;
+  white-space: pre-wrap;
+}
+.msg-row.mine .msg-bubble { background: var(--bubble-mine); margin-right: 10px; border-radius: var(--bubble-radius); color: #000; }
+.msg-row.other .msg-bubble { background: var(--bubble-other); margin-left: 10px; border-radius: var(--bubble-radius); color: #000; }
+
+.msg-row.mine .msg-bubble::after {
+  content: '';
+  position: absolute; right: -6px; top: 14px;
+  border-left: 6px solid var(--bubble-mine);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+.msg-row.other .msg-bubble::after {
+  content: '';
+  position: absolute; left: -6px; top: 14px;
+  border-right: 6px solid var(--bubble-other);
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+}
+
+.msg-image { max-width: 200px; max-height: 260px; border-radius: 6px; overflow: hidden; }
+.msg-image img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.msg-voice { display: inline-flex; align-items: center; gap: 6px; }
+.msg-voice .voice-duration { font-size: 14px; color: #888; }
+
+.msg-transfer { min-width: 200px; background: #fff; border-radius: 8px; overflow: hidden; font-size: 14px; }
+.msg-transfer .transfer-header { display: flex; align-items: center; gap: 8px; padding: 12px; border-bottom: 1px solid #f0f0f0; }
+.msg-transfer .transfer-icon { width: 28px; height: 28px; background: #e64340; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: #fff; font-size: 14px; }
+.msg-transfer .transfer-body { padding: 12px; color: #e64340; font-size: 20px; font-weight: 600; }
+.msg-transfer .transfer-note { font-size: 12px; color: #999; padding: 0 12px 12px; }
+
+.msg-redpacket { min-width: 180px; background: linear-gradient(135deg, #f9d3a3, #e95f35); border-radius: 8px; padding: 14px 16px; color: #fff; font-size: 14px; }
+.msg-redpacket .rp-title { font-size: 16px; font-weight: 600; margin-bottom: 4px; }
+.msg-redpacket .rp-subtitle { font-size: 12px; opacity: 0.85; }
+
+.input-bar {
+  position: absolute;
+  bottom: 0; left: 0; right: 0;
+  height: var(--inputbar-height);
+  background: #f7f7f7;
+  border-top: 0.5px solid var(--divider);
+  display: flex;
+  align-items: center;
+  padding: 0 10px;
+  gap: 8px;
+}
+.input-bar .voice-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 18px; color: #666; }
+.input-bar .input-field { flex: 1; height: 36px; background: #fff; border-radius: 6px; border: 0.5px solid #ddd; padding: 0 12px; font-size: 15px; display: flex; align-items: center; color: #999; }
+.input-bar .emoji-btn, .input-bar .plus-btn { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; font-size: 20px; color: #666; }
+
+/* 手机型号适配 */
+.device-iphone-14pro { width: 393px; height: 852px; }
+.device-iphone-14pro .status-bar { height: 54px; padding-top: 14px; }
+.device-iphone-15 { width: 393px; height: 852px; }
+.device-iphone-15 .status-bar { height: 54px; padding-top: 14px; }
+.device-iphone-se { width: 375px; height: 667px; }
+.device-iphone-se .status-bar { height: 20px; }
+.device-huawei-mate60 { width: 393px; height: 852px; }
+.device-huawei-mate60 .status-bar { height: 50px; padding-top: 10px; }
+.device-huawei-p60 { width: 390px; height: 844px; }
+.device-huawei-p60 .status-bar { height: 50px; padding-top: 10px; }
+.device-honor-magic6 { width: 393px; height: 852px; }
+.device-honor-magic6 .status-bar { height: 50px; padding-top: 10px; }
+.device-honor-90 { width: 388px; height: 840px; }
+.device-honor-90 .status-bar { height: 50px; padding-top: 10px; }
+.device-xiaomi-14pro { width: 402px; height: 874px; }
+.device-xiaomi-14pro .status-bar { height: 50px; padding-top: 10px; }
+.device-xiaomi-k70 { width: 393px; height: 852px; }
+.device-xiaomi-k70 .status-bar { height: 50px; padding-top: 10px; }
+.device-oppo-findx7 { width: 393px; height: 868px; }
+.device-oppo-findx7 .status-bar { height: 50px; padding-top: 10px; }
+.device-vivo-x100 { width: 393px; height: 873px; }
+.device-vivo-x100 .status-bar { height: 50px; padding-top: 10px; }
+
+/* 长图模式 */
+.long-screenshot .chat-area { overflow: visible; position: static; }
+.long-screenshot { height: auto !important; }
+.long-screenshot .input-bar { position: static; }
+
+.preview-container { display: flex; justify-content: center; padding: 20px; background: #f0f0f0; min-height: 100vh; }
+.preview-container .phone-frame { box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+
+/* 长图模式：导航栏与状态栏改为静态定位，避免覆盖内容 */
+.long-screenshot {
+  display: flex !important;
+  flex-direction: column;
+}
+.long-screenshot .status-bar,
+.long-screenshot .nav-bar,
+.long-screenshot .chat-area,
+.long-screenshot .input-bar {
+  position: static !important;
+}
+.long-screenshot .chat-area {
+  flex: 1;
+  padding-bottom: 20px;
+}
