@@ -21,8 +21,8 @@ const DEVICES = {
 const DEFAULT_CONFIG = {
   device: 'iphone-14pro',
   statusBarTime: '9:12',
-  opponent: { name: '李主任', avatar: 'avatars/真人/male_01_mid_business.png' },
-  me: { name: '我', avatar: 'avatars/风景/scene_01_mountain.png' },
+  opponent: { name: '李主任', avatar: 'avatars/real/male_01_mid_business.png' },
+  me: { name: '我', avatar: 'avatars/scenery/scene_01_mountain.png' },
   messages: []
 };
 
@@ -181,31 +181,31 @@ function escapeHtml(str) {
 function getAvatarList() {
   return [
     // 真人
-    { path: 'avatars/真人/male_01_mid_business.png', label: '男-商务' },
-    { path: 'avatars/真人/male_02_young_officer.png', label: '男-干部' },
-    { path: 'avatars/真人/male_03_worker.png', label: '男-工人' },
-    { path: 'avatars/真人/female_01_admin.png', label: '女-行政' },
-    { path: 'avatars/真人/female_02_young.png', label: '女-年轻' },
+    { path: 'avatars/real/male_01_mid_business.png', label: '男-商务' },
+    { path: 'avatars/real/male_02_young_officer.png', label: '男-干部' },
+    { path: 'avatars/real/male_03_worker.png', label: '男-工人' },
+    { path: 'avatars/real/female_01_admin.png', label: '女-行政' },
+    { path: 'avatars/real/female_02_young.png', label: '女-年轻' },
     // 风景
-    { path: 'avatars/风景/scene_01_mountain.png', label: '山景' },
-    { path: 'avatars/风景/scene_02_city.png', label: '城市' },
-    { path: 'avatars/风景/scene_03_lake.png', label: '湖泊' },
-    { path: 'avatars/风景/scene_04_forest.png', label: '森林' },
-    { path: 'avatars/风景/scene_05_snow.png', label: '雪景' },
-    { path: 'avatars/风景/scene_06_sea.png', label: '海景' },
-    { path: 'avatars/风景/scene_07_grass.png', label: '草原' },
-    { path: 'avatars/风景/scene_08_desert.png', label: '沙漠' },
-    { path: 'avatars/风景/scene_09_town.png', label: '古镇' },
+    { path: 'avatars/scenery/scene_01_mountain.png', label: '山景' },
+    { path: 'avatars/scenery/scene_02_city.png', label: '城市' },
+    { path: 'avatars/scenery/scene_03_lake.png', label: '湖泊' },
+    { path: 'avatars/scenery/scene_04_forest.png', label: '森林' },
+    { path: 'avatars/scenery/scene_05_snow.png', label: '雪景' },
+    { path: 'avatars/scenery/scene_06_sea.png', label: '海景' },
+    { path: 'avatars/scenery/scene_07_grass.png', label: '草原' },
+    { path: 'avatars/scenery/scene_08_desert.png', label: '沙漠' },
+    { path: 'avatars/scenery/scene_09_town.png', label: '古镇' },
     // 卡通
-    { path: 'avatars/卡通/cartoon_01_cat.png', label: '猫' },
-    { path: 'avatars/卡通/cartoon_02_dog.png', label: '狗' },
-    { path: 'avatars/卡通/cartoon_03_fox.png', label: '狐狸' },
-    { path: 'avatars/卡通/cartoon_04_panda.png', label: '熊猫' },
-    { path: 'avatars/卡通/cartoon_05_penguin.png', label: '企鹅' },
-    { path: 'avatars/卡通/cartoon_06_duck.png', label: '小鸭' },
+    { path: 'avatars/cartoon/cartoon_01_cat.png', label: '猫' },
+    { path: 'avatars/cartoon/cartoon_02_dog.png', label: '狗' },
+    { path: 'avatars/cartoon/cartoon_03_fox.png', label: '狐狸' },
+    { path: 'avatars/cartoon/cartoon_04_panda.png', label: '熊猫' },
+    { path: 'avatars/cartoon/cartoon_05_penguin.png', label: '企鹅' },
+    { path: 'avatars/cartoon/cartoon_06_duck.png', label: '小鸭' },
     // 抽象
-    { path: 'avatars/抽象/abstract_01_geo.png', label: '几何' },
-    { path: 'avatars/抽象/abstract_02_letter.png', label: '字母' }
+    { path: 'avatars/abstract/abstract_01_geo.png', label: '几何' },
+    { path: 'avatars/abstract/abstract_02_letter.png', label: '字母' }
   ];
 }
 
