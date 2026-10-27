@@ -10,7 +10,51 @@
 (function () {
   'use strict';
 
-  const FONT = '"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
+  /**
+   * 字体栈（按机型切换）
+   * 真机字体：iPhone=苹方(PingFang SC) / 华为荣耀=HarmonyOS Sans / 小米=MiSans
+   * 由于商用字体无法分发，本项目用 Noto Sans SC 三档字重近似：
+   *   - 苹方：字重偏细 (300)，字形略窄
+   *   - 鸿蒙：字重中等 (500)，字形方正
+   *   - MiSans：字重中等偏粗 (500)，字形略宽
+   */
+  let FONT = '"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
+  const FONT_STACKS = {
+    pingfang: '"PFX-PingFang","Noto SC Bold","Microsoft YaHei",sans-serif',
+    harmony: '"PFX-Harmony","Noto SC Medium","Microsoft YaHei",sans-serif',
+    misans: '"PFX-MiSans","Noto SC Medium","Microsoft YaHei",sans-serif',
+    system: '"Noto SC Medium","Microsoft YaHei",sans-serif'
+  };
+
+  async function ensureFonts() {
+    if (window.__fontsReady) return;
+    const defs = [
+      { family: 'PFX-PingFang', url: 'fonts/NotoSC-300.ttf', weight: '100 900' },
+      { family: 'PFX-Harmony', url: 'fonts/NotoSC-500.ttf', weight: '100 900' },
+      { family: 'PFX-MiSans', url: 'fonts/NotoSC-500.ttf', weight: '100 900' },
+      { family: 'Noto SC Bold', url: 'fonts/NotoSC-700.ttf', weight: '100 900' },
+      { family: 'Noto SC Medium', url: 'fonts/NotoSC-500.ttf', weight: '100 900' }
+    ];
+    await Promise.all(defs.map(async d => {
+      try {
+        const face = new FontFace(d.family, 'url("' + d.url + '")', { weight: d.weight });
+        await face.load();
+        document.fonts.add(face);
+      } catch (e) {
+        console.warn('font load failed:', d.url, e.message);
+      }
+    }));
+    window.__fontsReady = true;
+  }
+
+  function applyDeviceFont(device) {
+    const key = device && device.font ? device.font : 'system';
+    if (key === 'PingFang') FONT = FONT_STACKS.pingfang;
+    else if (key === 'HarmonyOS') FONT = FONT_STACKS.harmony;
+    else if (key === 'MiSans') FONT = FONT_STACKS.misans;
+    else FONT = FONT_STACKS.system;
+    L.fontFamily = FONT;
+  }
 
   const L = {
     padX: 10,
@@ -271,6 +315,8 @@
   // ---------- 布局 ----------
   async function buildLayout(config) {
     const deviceKey = config.device || 'iphone-14pro';
+    const deviceDef = DEVICES[deviceKey] || DEVICES['iphone-14pro'];
+    applyDeviceFont(deviceDef);
     const [W, H] = SIZES[deviceKey] || SIZES['iphone-14pro'];
     const sb = STATUS[deviceKey] || { h: 44, pad: 8 };
 
@@ -797,6 +843,7 @@
 
   // ---------- 主渲染 ----------
   async function render(config, scale) {
+    await ensureFonts();
     const lay = await buildLayout(config);
     const dev = DEVICES[config.device] || DEVICES['iphone-14pro'];
 
@@ -911,6 +958,7 @@
     wechatTime: wechatTime,
     normalizeParticipants: normalizeParticipants,
     DEVICES: DEVICES,
+    ensureFonts: ensureFonts,
     STATUS: STATUS,
     SIZES: SIZES
   };
