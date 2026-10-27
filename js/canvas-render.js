@@ -34,27 +34,79 @@
     inputH: 56
   };
 
-  const STATUS = {
-    'iphone-14pro': { h: 54, pad: 14 },
-    'iphone-15': { h: 54, pad: 14 },
-    'iphone-se': { h: 20, pad: 0 },
-    'huawei-mate60': { h: 50, pad: 10 },
-    'huawei-p60': { h: 50, pad: 10 },
-    'honor-magic6': { h: 50, pad: 10 },
-    'honor-90': { h: 50, pad: 10 },
-    'xiaomi-14pro': { h: 50, pad: 10 },
-    'xiaomi-k70': { h: 50, pad: 10 },
-    'oppo-findx7': { h: 50, pad: 10 },
-    'vivo-x100': { h: 50, pad: 10 }
+  /**
+   * 设备规格
+   * w/h       = CSS 逻辑尺寸（微信 UI 按此排版）
+   * pxW/pxH   = 真机物理像素（导出时按此对齐）
+   * status    = 状态栏高度/顶部内边距
+   * cutout    = 屏幕开孔类型: island(灵动岛) / punch(挖孔) / notch(刘海) / none
+   * cutoutW/H = 开孔尺寸
+   * homeBar   = 底部横条高度（0=无）
+   */
+  const DEVICES = {
+    'iphone-14pro': {
+      name: 'iPhone 14 Pro', w: 393, h: 852, pxW: 1179, pxH: 2556,
+      status: { h: 54, pad: 18 }, cutout: 'island', cutoutW: 110, cutoutH: 33,
+      homeBar: 34, radius: 55, font: 'PingFang'
+    },
+    'iphone-15': {
+      name: 'iPhone 15', w: 393, h: 852, pxW: 1179, pxH: 2556,
+      status: { h: 54, pad: 18 }, cutout: 'island', cutoutW: 110, cutoutH: 33,
+      homeBar: 34, radius: 55, font: 'PingFang'
+    },
+    'iphone-se': {
+      name: 'iPhone SE', w: 375, h: 667, pxW: 750, pxH: 1334,
+      status: { h: 20, pad: 0 }, cutout: 'none', cutoutW: 0, cutoutH: 0,
+      homeBar: 0, radius: 0, font: 'PingFang'
+    },
+    'huawei-mate60': {
+      name: '华为 Mate 60 Pro', w: 420, h: 907, pxW: 1260, pxH: 2720,
+      status: { h: 48, pad: 12 }, cutout: 'punch', cutoutW: 10, cutoutH: 10,
+      homeBar: 0, radius: 60, font: 'HarmonyOS'
+    },
+    'huawei-p60': {
+      name: '华为 P60', w: 407, h: 900, pxW: 1220, pxH: 2700,
+      status: { h: 48, pad: 12 }, cutout: 'punch', cutoutW: 10, cutoutH: 10,
+      homeBar: 0, radius: 58, font: 'HarmonyOS'
+    },
+    'honor-magic6': {
+      name: '荣耀 Magic6 Pro', w: 427, h: 924, pxW: 1280, pxH: 2772,
+      status: { h: 48, pad: 12 }, cutout: 'punch', cutoutW: 18, cutoutH: 18,
+      homeBar: 0, radius: 60, font: 'HarmonyOS'
+    },
+    'honor-90': {
+      name: '荣耀 90', w: 400, h: 888, pxW: 1200, pxH: 2664,
+      status: { h: 46, pad: 11 }, cutout: 'punch', cutoutW: 18, cutoutH: 18,
+      homeBar: 0, radius: 56, font: 'HarmonyOS'
+    },
+    'xiaomi-14pro': {
+      name: '小米 14 Pro', w: 480, h: 1067, pxW: 1440, pxH: 3200,
+      status: { h: 44, pad: 10 }, cutout: 'punch-center', cutoutW: 10, cutoutH: 10,
+      homeBar: 0, radius: 60, font: 'MiSans'
+    },
+    'xiaomi-k70': {
+      name: 'Redmi K70', w: 480, h: 1067, pxW: 1440, pxH: 3200,
+      status: { h: 44, pad: 10 }, cutout: 'punch-center', cutoutW: 10, cutoutH: 10,
+      homeBar: 0, radius: 58, font: 'MiSans'
+    },
+    'oppo-findx7': {
+      name: 'OPPO Find X7', w: 421, h: 928, pxW: 1264, pxH: 2784,
+      status: { h: 46, pad: 11 }, cutout: 'punch-center', cutoutW: 10, cutoutH: 10,
+      homeBar: 0, radius: 58, font: 'HarmonyOS'
+    },
+    'vivo-x100': {
+      name: 'vivo X100', w: 420, h: 933, pxW: 1260, pxH: 2800,
+      status: { h: 46, pad: 11 }, cutout: 'punch-center', cutoutW: 10, cutoutH: 10,
+      homeBar: 0, radius: 58, font: 'HarmonyOS'
+    }
   };
 
-  const SIZES = {
-    'iphone-14pro': [393, 852], 'iphone-15': [393, 852], 'iphone-se': [375, 667],
-    'huawei-mate60': [393, 852], 'huawei-p60': [390, 844],
-    'honor-magic6': [393, 852], 'honor-90': [388, 840],
-    'xiaomi-14pro': [402, 874], 'xiaomi-k70': [393, 852],
-    'oppo-findx7': [393, 868], 'vivo-x100': [393, 873]
-  };
+  const STATUS = {};
+  const SIZES = {};
+  Object.keys(DEVICES).forEach(k => {
+    STATUS[k] = DEVICES[k].status;
+    SIZES[k] = [DEVICES[k].w, DEVICES[k].h];
+  });
 
   // ---------- 工具 ----------
   function rr(ctx, x, y, w, h, r) {
@@ -350,10 +402,30 @@
       offset = Math.max(0, contentH - availH);
     }
 
+    // 状态栏时间：未显式指定时，自动取最后一条消息时间（避免"时间倒流"破绽）
+    let statusTime = config.statusBarTime;
+    if (!statusTime || statusTime === 'auto') {
+      let lastTs = null;
+      for (const m of msgs) {
+        if (m.time) {
+          const t = new Date(m.time).getTime();
+          if (!isNaN(t)) lastTs = t;
+        }
+      }
+      if (lastTs) {
+        const d = new Date(lastTs);
+        let hh = d.getHours();
+        const mm = String(d.getMinutes()).padStart(2, '0');
+        statusTime = hh + ':' + mm;
+      } else {
+        statusTime = '9:12';
+      }
+    }
+
     return {
       W: W, H: totalH, sb: sb, contentH: contentH,
       offset: offset, longMode: longMode, blocks: blocks,
-      parts: parts, isGroup: isGroup
+      parts: parts, isGroup: isGroup, statusTime: statusTime
     };
   }
 
@@ -369,7 +441,7 @@
     ctx.fillStyle = '#000';
     ctx.font = '600 14px ' + FONT;
     ctx.textAlign = 'left';
-    ctx.fillText(config.statusBarTime || '9:12', 20, cy + 1);
+    ctx.fillText(lay.statusTime || config.statusBarTime || '9:12', 20, cy + 1);
 
     const sigX = W - 90, bars = [4, 7, 10, 13];
     ctx.fillStyle = '#000';
@@ -674,15 +746,75 @@
     }
   }
 
+  // ---------- 屏幕特征绘制 ----------
+  function drawCutout(ctx, lay, device) {
+    const W = lay.W;
+    const sb = lay.sb;
+    const cx = W / 2;
+
+    if (device.cutout === 'island') {
+      // iPhone 灵动岛：黑色圆角胶囊
+      const w = device.cutoutW, h = device.cutoutH;
+      const x = cx - w / 2, y = sb.pad + 3;
+      ctx.fillStyle = '#000';
+      rr(ctx, x, y, w, h, h / 2);
+      ctx.fill();
+    } else if (device.cutout === 'punch' || device.cutout === 'punch-center') {
+      // 安卓居中挖孔：黑色圆形
+      const d = device.cutoutW;
+      const y = sb.pad + (sb.h - sb.pad) / 2;
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.arc(cx, y, d / 2, 0, Math.PI * 2);
+      ctx.fill();
+    } else if (device.cutout === 'notch') {
+      // 传统刘海
+      const w = 156, h = 28;
+      const x = cx - w / 2;
+      ctx.fillStyle = '#000';
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + w, 0);
+      ctx.lineTo(x + w, h - 8);
+      ctx.quadraticCurveTo(x + w, h, x + w - 10, h);
+      ctx.lineTo(x + 10, h);
+      ctx.quadraticCurveTo(x, h, x, h - 8);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function drawHomeBar(ctx, lay, device) {
+    if (!device.homeBar) return;
+    const W = lay.W, H = lay.H;
+    const bw = 134, bh = 5;
+    const x = (W - bw) / 2;
+    const y = H - 9;
+    ctx.fillStyle = 'rgba(0,0,0,0.85)';
+    rr(ctx, x, y, bw, bh, bh / 2);
+    ctx.fill();
+  }
+
   // ---------- 主渲染 ----------
   async function render(config, scale) {
-    scale = scale || 3;
     const lay = await buildLayout(config);
+    const dev = DEVICES[config.device] || DEVICES['iphone-14pro'];
+
+    // 按真机物理像素输出；scale 参数仅用于预览缩放
+    const outW = dev.pxW;
+    const outH = lay.longMode
+      ? Math.round(dev.pxW * (lay.H / dev.w))
+      : dev.pxH;
+
     const canvas = document.createElement('canvas');
-    canvas.width = Math.round(lay.W * scale);
-    canvas.height = Math.round(lay.H * scale);
+    canvas.width = outW;
+    canvas.height = outH;
+
     const ctx = canvas.getContext('2d');
-    ctx.scale(scale, scale);
+    // 将逻辑坐标映射到物理像素
+    const sx = outW / lay.W;
+    const sy = outH / lay.H;
+    ctx.scale(sx, sy);
 
     ctx.fillStyle = '#ededed';
     ctx.fillRect(0, 0, lay.W, lay.H);
@@ -701,11 +833,37 @@
     drawNavBar(ctx, lay, config);
     drawInputBar(ctx, lay);
 
+    // 屏幕特征（最后画，覆盖在最上层）
+    drawCutout(ctx, lay, dev);
+    drawHomeBar(ctx, lay, dev);
+
+    canvas.__dev = dev;
     return canvas;
   }
 
-  function canvasToBlob(canvas) {
-    return new Promise(resolve => canvas.toBlob(resolve, 'image/png'));
+  /**
+   * 导出为 JPEG（质量 0.92）——模拟真机截图经微信保存后的压缩痕迹：
+   *  - 无 alpha 通道（真机截图不含透明）
+   *  - 有轻微压缩噪点（AI 生图检测器不会因此判为 AI，但更像真实截图）
+   */
+  function canvasToBlob(canvas, format, quality) {
+    format = format || 'image/jpeg';
+    quality = quality == null ? 0.92 : quality;
+    return new Promise(resolve => {
+      if (format === 'image/png') {
+        canvas.toBlob(resolve, 'image/png');
+        return;
+      }
+      // 先铺白底去掉 alpha
+      const c2 = document.createElement('canvas');
+      c2.width = canvas.width;
+      c2.height = canvas.height;
+      const ctx2 = c2.getContext('2d');
+      ctx2.fillStyle = '#ffffff';
+      ctx2.fillRect(0, 0, c2.width, c2.height);
+      ctx2.drawImage(canvas, 0, 0);
+      c2.toBlob(resolve, 'image/jpeg', quality);
+    });
   }
 
   function triggerDownload(blob, filename) {
@@ -719,11 +877,15 @@
     setTimeout(() => URL.revokeObjectURL(url), 4000);
   }
 
-  async function download(config, filename, scale) {
+  async function download(config, filename, scale, format) {
     const canvas = await render(config, scale);
-    const blob = await canvasToBlob(canvas);
-    triggerDownload(blob, filename || ((config.title || '聊天截图') + '.png'));
-    return { width: canvas.width, height: canvas.height };
+    const fmt = format || config.exportFormat || 'image/jpeg';
+    const blob = await canvasToBlob(canvas, fmt, config.exportQuality);
+    const ext = fmt === 'image/png' ? '.png' : '.jpg';
+    let name = filename || (config.title || '聊天截图');
+    name = name.replace(/\.(png|jpg|jpeg)$/i, '') + ext;
+    triggerDownload(blob, name);
+    return { width: canvas.width, height: canvas.height, filename: name };
   }
 
   /** 把消息按时间跨度分成若干"截图窗口"，每张可跨天 */
@@ -748,6 +910,7 @@
     planShots: planShots,
     wechatTime: wechatTime,
     normalizeParticipants: normalizeParticipants,
+    DEVICES: DEVICES,
     STATUS: STATUS,
     SIZES: SIZES
   };
