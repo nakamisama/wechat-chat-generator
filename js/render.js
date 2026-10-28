@@ -180,6 +180,8 @@ function escapeHtml(str) {
  */
 function getAvatarList() {
   return [
+    // 我方专用（用户提供）
+    { path: 'avatars/me/my_avatar.jpg', label: '我方-全家福' },
     // 真人
     { path: 'avatars/real/male_01_mid_business.png', label: '男-商务' },
     { path: 'avatars/real/male_02_young_officer.png', label: '男-干部' },
