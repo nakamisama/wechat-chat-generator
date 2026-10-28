@@ -164,6 +164,17 @@
     ctx.closePath();
   }
 
+  /** 根据扩展名返回文件图标颜色与字母 */
+  function fileIconStyle(name) {
+    const n = String(name || '').toLowerCase();
+    if (n.endsWith('.docx') || n.endsWith('.doc')) return { color: '#2b579a', label: 'W' };
+    if (n.endsWith('.xlsx') || n.endsWith('.xls')) return { color: '#217346', label: 'X' };
+    if (n.endsWith('.pptx') || n.endsWith('.ppt')) return { color: '#d24726', label: 'P' };
+    if (n.endsWith('.pdf')) return { color: '#c0392b', label: 'P' };
+    if (n.endsWith('.zip') || n.endsWith('.rar')) return { color: '#f39c12', label: 'Z' };
+    return { color: '#4a90d9', label: 'F' };
+  }
+
   function loadImage(src) {
     return new Promise(resolve => {
       if (!src) return resolve(null);
@@ -402,8 +413,8 @@
         bubbleW = 208;
         bubbleH = 74;
       } else if (msg.type === 'file') {
-        bubbleW = 210;
-        bubbleH = 82;
+        bubbleW = 218;
+        bubbleH = 68;
       } else if (msg.type === 'link') {
         bubbleW = 220;
         bubbleH = 76;
@@ -824,57 +835,47 @@
     }
 
     if (msg.type === 'file') {
-      // 文件消息卡片
+      // 手机端文件卡片（参照真实微信样式：白底 + 左侧图标 + 右侧文件名/大小）
+      const cardW = bw, cardH = bh;
+      const iconStyle = fileIconStyle(msg.name);
+
+      // 白底卡片
       ctx.fillStyle = '#fff';
-      rr(ctx, bubbleX, bubbleY, bw, bh, L.bubbleR);
+      rr(ctx, bubbleX, bubbleY, cardW, cardH, L.bubbleR);
       ctx.fill();
-      // 文件图标
-      const fx = bubbleX + 16, fy = bubbleY + 22;
-      ctx.fillStyle = '#e8f0fe';
-      rr(ctx, fx - 10, fy - 14, 28, 36, 4);
+
+      // 左侧彩色图标（32x40）
+      const iw = 32, ih = 40;
+      const ix = bubbleX + 12;
+      const iy = bubbleY + (cardH - ih) / 2;
+
+      ctx.fillStyle = iconStyle.color;
+      rr(ctx, ix, iy, iw, ih, 3);
       ctx.fill();
-      ctx.strokeStyle = '#3b82f6';
-      ctx.lineWidth = 1.4;
-      rr(ctx, fx - 10, fy - 14, 28, 36, 4);
-      ctx.stroke();
-      // 折角
+
+      // 图标字母
       ctx.fillStyle = '#fff';
-      ctx.beginPath();
-      ctx.moveTo(fx + 8, fy - 14);
-      ctx.lineTo(fx + 18, fy - 4);
-      ctx.lineTo(fx + 8, fy - 4);
-      ctx.closePath();
-      ctx.fill();
-      ctx.strokeStyle = '#3b82f6';
-      ctx.beginPath();
-      ctx.moveTo(fx + 8, fy - 14);
-      ctx.lineTo(fx + 18, fy - 4);
-      ctx.lineTo(fx + 8, fy - 4);
-      ctx.closePath();
-      ctx.stroke();
+      ctx.font = 'bold 17px ' + FONT;
+      ctx.textAlign = 'center';
+      ctx.textBaseline = 'middle';
+      ctx.fillText(iconStyle.label, ix + iw / 2, iy + ih / 2 + 1);
+
       // 文件名
       ctx.fillStyle = '#1a1a1a';
       ctx.font = '14px ' + FONT;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      const fname = msg.name || '文件';
-      let show = fname;
-      const maxW = bw - 62;
-      while (ctx.measureText(show).width > maxW && show.length > 4) {
-        show = show.slice(0, -1);
-      }
-      if (show !== fname) show = show.slice(0, -1) + '…';
-      ctx.fillText(show, bubbleX + 46, bubbleY + 26);
+      let fname = msg.name || '文件';
+      const nameMaxW = cardW - iw - 34;
+      let disp = fname;
+      while (ctx.measureText(disp).width > nameMaxW && disp.length > 6) disp = disp.slice(0, -1);
+      if (disp !== fname) disp = disp.slice(0, -1) + '…';
+      ctx.fillText(disp, ix + iw + 10, bubbleY + cardH * 0.36);
+
       // 文件大小
       ctx.fillStyle = '#999';
       ctx.font = '12px ' + FONT;
-      ctx.fillText(msg.size || '', bubbleX + 46, bubbleY + 50);
-      // 分隔线
-      ctx.fillStyle = '#f0f0f0';
-      ctx.fillRect(bubbleX + 12, bubbleY + bh - 22, bw - 24, 1);
-      ctx.fillStyle = '#999';
-      ctx.font = '11px ' + FONT;
-      ctx.fillText('微信电脑版', bubbleX + 14, bubbleY + bh - 11);
+      ctx.fillText(msg.size || '', ix + iw + 10, bubbleY + cardH * 0.68);
       return;
     }
 
