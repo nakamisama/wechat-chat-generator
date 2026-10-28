@@ -401,6 +401,12 @@
       } else if (msg.type === 'redpacket') {
         bubbleW = 208;
         bubbleH = 74;
+      } else if (msg.type === 'file') {
+        bubbleW = 210;
+        bubbleH = 82;
+      } else if (msg.type === 'link') {
+        bubbleW = 220;
+        bubbleH = 76;
       } else {
         lines = wrapText(mctx, msg.text, maxTextW);
         let textW = 0;
@@ -476,6 +482,16 @@
   }
 
   // ---------- 绘制：状态栏 ----------
+  /**
+   * 绘制状态栏
+   * 支持差异化：
+   *   - 信号格数 signalBars (1-4)
+   *   - 网络类型 network: 'wifi' | '5g' | '4g' | 'none'
+   *   - 电量 battery (0-100)，自动判断是否充电/低电量变红
+   *   - 静音 mute: true 时显示静音图标
+   *   - 闹钟 alarm: true 时显示闹钟图标
+   *   - 定位 location: true 时显示定位箭头
+   */
   function drawStatusBar(ctx, lay, config) {
     const W = lay.W, sb = lay.sb;
     ctx.fillStyle = '#ededed';
@@ -484,38 +500,151 @@
     const cy = sb.pad + (sb.h - sb.pad) / 2;
     ctx.textBaseline = 'middle';
 
+    const st = config.status || {};
+    const signalBars = st.signalBars == null ? 4 : st.signalBars;
+    const network = st.network || 'wifi';
+    const battery = st.battery == null ? 78 : st.battery;
+    const charging = !!st.charging;
+    const mute = !!st.mute;
+    const alarm = !!st.alarm;
+    const location = !!st.location;
+
+    // ── 左侧：时间 ──
     ctx.fillStyle = '#000';
     ctx.font = '600 14px ' + FONT;
     ctx.textAlign = 'left';
-    ctx.fillText(lay.statusTime || config.statusBarTime || '9:12', 20, cy + 1);
+    ctx.fillText(lay.statusTime || '9:12', 20, cy + 1);
 
-    const sigX = W - 90, bars = [4, 7, 10, 13];
-    ctx.fillStyle = '#000';
-    bars.forEach((bh, i) => ctx.fillRect(sigX + i * 5, cy + 8 - bh, 3, bh));
+    // ── 右侧：从右往左排布 ──
+    let rx = W - 20;
 
-    ctx.strokeStyle = '#000';
-    ctx.lineWidth = 1.6;
-    ctx.lineCap = 'round';
-    const wx = W - 68, wy = cy + 6;
-    [9, 6, 3].forEach(r => {
-      ctx.beginPath();
-      ctx.arc(wx, wy, r, Math.PI * 1.25, Math.PI * 1.75);
-      ctx.stroke();
-    });
-    ctx.beginPath();
-    ctx.arc(wx, wy, 1.1, 0, Math.PI * 2);
-    ctx.fillStyle = '#000';
-    ctx.fill();
-
-    const bx = W - 44, by = cy - 5.5;
-    ctx.strokeStyle = 'rgba(0,0,0,0.85)';
+    // 电池
+    const bw = 22, bh = 11;
+    const bx = rx - bw;
+    const by = cy - bh / 2;
+    ctx.strokeStyle = battery <= 20 ? '#e53935' : 'rgba(0,0,0,0.75)';
     ctx.lineWidth = 1;
-    rr(ctx, bx, by, 22, 11, 3);
+    rr(ctx, bx, by, bw, bh, 3);
     ctx.stroke();
-    ctx.fillStyle = '#000';
-    rr(ctx, bx + 2, by + 2, 14, 7, 1.5);
+    // 电池正极
+    ctx.fillStyle = battery <= 20 ? '#e53935' : 'rgba(0,0,0,0.75)';
+    rr(ctx, bx + bw + 0.5, by + 3.5, 1.6, 4, 0.8);
     ctx.fill();
-    ctx.fillRect(bx + 22.5, by + 3.5, 1.5, 4);
+    // 电量填充
+    const innerW = bw - 3.2;
+    const fillW = Math.max(1.5, innerW * Math.min(100, Math.max(0, battery)) / 100);
+    ctx.fillStyle = battery <= 20 ? '#e53935' : (charging ? '#34c759' : '#000');
+    rr(ctx, bx + 1.6, by + 1.6, fillW, bh - 3.2, 1.4);
+    ctx.fill();
+    // 充电闪电
+    if (charging) {
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.moveTo(bx + 9, by + 2.2);
+      ctx.lineTo(bx + 6.6, by + 5.6);
+      ctx.lineTo(bx + 8.4, by + 5.6);
+      ctx.lineTo(bx + 7.2, by + 8.6);
+      ctx.lineTo(bx + 11, by + 4.6);
+      ctx.lineTo(bx + 9.2, by + 4.6);
+      ctx.closePath();
+      ctx.fill();
+    }
+    rx = bx - 6;
+
+    // 网络：WiFi 或 5G/4G
+    if (network === 'wifi') {
+      const wx = rx - 15, wy = cy + 5;
+      ctx.strokeStyle = '#000';
+      ctx.lineWidth = 1.7;
+      ctx.lineCap = 'round';
+      [8.5, 5.5, 2.8].forEach(r => {
+        ctx.beginPath();
+        ctx.arc(wx, wy, r, Math.PI * 1.22, Math.PI * 1.78);
+        ctx.stroke();
+      });
+      ctx.beginPath();
+      ctx.arc(wx, wy, 1.1, 0, Math.PI * 2);
+      ctx.fillStyle = '#000';
+      ctx.fill();
+      rx = wx - 10;
+    } else if (network === '5g' || network === '4g') {
+      ctx.fillStyle = '#000';
+      ctx.font = '600 12px ' + FONT;
+      ctx.textAlign = 'right';
+      const label = network === '5g' ? '5G' : '4G';
+      ctx.fillText(label, rx, cy + 1);
+      rx = rx - ctx.measureText(label).width - 6;
+    }
+
+    // 信号格
+    if (signalBars > 0) {
+      const barW = 3, gap = 1.6, maxH = 13;
+      const totalW = 4 * barW + 3 * gap;
+      const sx = rx - totalW;
+      for (let i = 0; i < 4; i++) {
+        const h = (maxH / 4) * (i + 1) + 1.5;
+        const x = sx + i * (barW + gap);
+        const y = cy + maxH / 2 - h;
+        const active = i < signalBars;
+        ctx.fillStyle = active ? '#000' : 'rgba(0,0,0,0.22)';
+        rr(ctx, x, y, barW, h, 1);
+        ctx.fill();
+      }
+      rx = sx - 8;
+    }
+
+    // 静音 / 闹钟 / 定位（在信号左侧）
+    for (const kind of ['location', 'alarm', 'mute']) {
+      const on = (kind === 'location' && location) ||
+                 (kind === 'alarm' && alarm) ||
+                 (kind === 'mute' && mute);
+      if (!on) continue;
+      const ix = rx - 8;
+      ctx.strokeStyle = '#000';
+      ctx.fillStyle = '#000';
+      ctx.lineWidth = 1.5;
+      ctx.lineCap = 'round';
+      if (kind === 'mute') {
+        // 小铃铛 + 斜杠
+        ctx.beginPath();
+        ctx.moveTo(ix - 3.5, cy - 2.5);
+        ctx.quadraticCurveTo(ix - 3.5, cy - 8, ix, cy - 8);
+        ctx.quadraticCurveTo(ix + 3.5, cy - 8, ix + 3.5, cy - 2.5);
+        ctx.lineTo(ix + 4.5, cy + 1);
+        ctx.lineTo(ix - 4.5, cy + 1);
+        ctx.closePath();
+        ctx.fill();
+        ctx.beginPath();
+        ctx.arc(ix, cy + 3, 1.4, 0, Math.PI);
+        ctx.fill();
+        ctx.strokeStyle = '#000';
+        ctx.lineWidth = 1.4;
+        ctx.beginPath();
+        ctx.moveTo(ix - 6, cy + 5);
+        ctx.lineTo(ix + 6, cy - 7);
+        ctx.stroke();
+      } else if (kind === 'alarm') {
+        // 时钟
+        ctx.beginPath();
+        ctx.arc(ix, cy, 5.2, 0, Math.PI * 2);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(ix, cy - 2.6);
+        ctx.lineTo(ix, cy + 0.6);
+        ctx.lineTo(ix + 2.2, cy + 0.6);
+        ctx.stroke();
+      } else if (kind === 'location') {
+        // 定位箭头
+        ctx.beginPath();
+        ctx.moveTo(ix, cy - 6);
+        ctx.lineTo(ix + 4.6, cy + 5);
+        ctx.lineTo(ix, cy + 2.2);
+        ctx.lineTo(ix - 4.6, cy + 5);
+        ctx.closePath();
+        ctx.fill();
+      }
+      rx = ix - 8;
+    }
   }
 
   // ---------- 绘制：导航栏 ----------
@@ -691,6 +820,90 @@
         ctx.textBaseline = 'middle';
         ctx.fillText('图片', bubbleX + bw / 2, bubbleY + bh / 2);
       }
+      return;
+    }
+
+    if (msg.type === 'file') {
+      // 文件消息卡片
+      ctx.fillStyle = '#fff';
+      rr(ctx, bubbleX, bubbleY, bw, bh, L.bubbleR);
+      ctx.fill();
+      // 文件图标
+      const fx = bubbleX + 16, fy = bubbleY + 22;
+      ctx.fillStyle = '#e8f0fe';
+      rr(ctx, fx - 10, fy - 14, 28, 36, 4);
+      ctx.fill();
+      ctx.strokeStyle = '#3b82f6';
+      ctx.lineWidth = 1.4;
+      rr(ctx, fx - 10, fy - 14, 28, 36, 4);
+      ctx.stroke();
+      // 折角
+      ctx.fillStyle = '#fff';
+      ctx.beginPath();
+      ctx.moveTo(fx + 8, fy - 14);
+      ctx.lineTo(fx + 18, fy - 4);
+      ctx.lineTo(fx + 8, fy - 4);
+      ctx.closePath();
+      ctx.fill();
+      ctx.strokeStyle = '#3b82f6';
+      ctx.beginPath();
+      ctx.moveTo(fx + 8, fy - 14);
+      ctx.lineTo(fx + 18, fy - 4);
+      ctx.lineTo(fx + 8, fy - 4);
+      ctx.closePath();
+      ctx.stroke();
+      // 文件名
+      ctx.fillStyle = '#1a1a1a';
+      ctx.font = '14px ' + FONT;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      const fname = msg.name || '文件';
+      let show = fname;
+      const maxW = bw - 62;
+      while (ctx.measureText(show).width > maxW && show.length > 4) {
+        show = show.slice(0, -1);
+      }
+      if (show !== fname) show = show.slice(0, -1) + '…';
+      ctx.fillText(show, bubbleX + 46, bubbleY + 26);
+      // 文件大小
+      ctx.fillStyle = '#999';
+      ctx.font = '12px ' + FONT;
+      ctx.fillText(msg.size || '', bubbleX + 46, bubbleY + 50);
+      // 分隔线
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fillRect(bubbleX + 12, bubbleY + bh - 22, bw - 24, 1);
+      ctx.fillStyle = '#999';
+      ctx.font = '11px ' + FONT;
+      ctx.fillText('微信电脑版', bubbleX + 14, bubbleY + bh - 11);
+      return;
+    }
+
+    if (msg.type === 'link') {
+      // 链接/文章卡片
+      ctx.fillStyle = '#fff';
+      rr(ctx, bubbleX, bubbleY, bw, bh, L.bubbleR);
+      ctx.fill();
+      ctx.fillStyle = '#1a1a1a';
+      ctx.font = '14px ' + FONT;
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      const title = msg.title || '链接';
+      let t = title;
+      const mw = bw - 112;
+      while (ctx.measureText(t).width > mw && t.length > 3) t = t.slice(0, -1);
+      if (t !== title) t = t.slice(0, -1) + '…';
+      ctx.fillText(t, bubbleX + 14, bubbleY + 22);
+      ctx.fillStyle = '#999';
+      ctx.font = '12px ' + FONT;
+      ctx.fillText(msg.desc || '', bubbleX + 14, bubbleY + 46);
+      // 右侧缩略图
+      ctx.fillStyle = '#e5e7eb';
+      rr(ctx, bubbleX + bw - 72, bubbleY + 8, 64, 64, 4);
+      ctx.fill();
+      ctx.fillStyle = '#9ca3af';
+      ctx.font = '11px ' + FONT;
+      ctx.textAlign = 'center';
+      ctx.fillText('链接', bubbleX + bw - 40, bubbleY + 40);
       return;
     }
 
