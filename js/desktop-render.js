@@ -2,20 +2,24 @@
 (function () {
   'use strict';
 
+  // 基准尺寸对应 1440px 宽窗口。
+  // 实测真实 Windows 微信截图（1550px 宽）：正文单字宽 ≈ 21.1px，
+  // 即 单字宽 / 窗口宽 ≈ 1.361%，折合 1440 宽时约 19.6px。
+  // 因此字号、间距都随 winW 等比缩放，保证任何窗口尺寸下观感一致。
   const DL = {
     winW: 1440,
     winH: 908,
-    titleBarH: 60,
-    inputH: 168,
-    avatarSize: 42,
-    bubblePadX: 12,
-    bubblePadY: 10,
+    titleBarH: 62,
+    inputH: 176,
+    avatarSize: 48,
+    bubblePadX: 14,
+    bubblePadY: 12,
     bubbleR: 4,
-    fontSize: 15,
-    lineH: 22,
-    rowGap: 22,
-    timeSize: 12,
-    padX: 26,
+    fontSize: 20,
+    lineH: 28,
+    rowGap: 24,
+    timeSize: 15,
+    padX: 28,
     gap: 16
   };
 
@@ -167,6 +171,21 @@
   async function buildLayout(config) {
     const W = config.winW || DL.winW;
     const H = config.winH || DL.winH;
+    // 所有尺寸按窗口宽度等比缩放，保证不同窗口下字号观感与真实微信一致
+    const SC = W / DL.winW;
+    const S = {
+      fontSize: DL.fontSize * SC,
+      lineH: DL.lineH * SC,
+      timeSize: DL.timeSize * SC,
+      avatar: DL.avatarSize * SC,
+      padX: DL.padX * SC,
+      rowGap: DL.rowGap * SC,
+      bubblePadX: DL.bubblePadX * SC,
+      bubblePadY: DL.bubblePadY * SC,
+      nickH: 22 * SC,
+      maxBubbleRatio: 0.62
+    };
+    config.__S = S;
     const parts = normalizeParticipants(config);
     const isGroup = !!(config.group && config.group.enabled);
 
@@ -175,12 +194,12 @@
       avatarMap[p.id] = await loadImage(p.avatar);
     }
 
-    const areaW = W - DL.padX * 2;
+    const areaW = W - S.padX * 2;
     const maxBubbleW = areaW * 0.62;
-    const maxTextW = maxBubbleW - DL.bubblePadX * 2 - 2;
+    const maxTextW = maxBubbleW - S.bubblePadX * 2 - 2;
 
     const mctx = document.createElement('canvas').getContext('2d');
-    mctx.font = DL.fontSize + 'px ' + FONT;
+    mctx.font = S.fontSize + 'px ' + FONT;
 
     const msgs = config.messages || [];
     const threshold = (config.timeThresholdMin == null ? 10 : config.timeThresholdMin) * 60000;
@@ -229,7 +248,7 @@
         bubbleW = iw; bubbleH = ih;
       } else if (msg.type === 'voice') {
         bubbleW = 90 + Math.min((msg.duration || 3) * 3, 50);
-        bubbleH = DL.lineH + DL.bubblePadY * 2;
+        bubbleH = S.lineH + S.bubblePadY * 2;
       } else if (msg.type === 'transfer') {
         bubbleW = 230; bubbleH = 120;
       } else if (msg.type === 'redpacket') {
@@ -237,7 +256,7 @@
       } else if (msg.type === 'file') {
         // 卡片宽度按文件名自适应（单行放得下就单行），限制在合理区间
         const nmCtx = mctx;
-        nmCtx.font = '15px ' + FONT;
+        nmCtx.font = S.fontSize + 'px ' + FONT;
         const nameW = nmCtx.measureText(msg.name || '文件').width;
         bubbleW = Math.max(230, Math.min(340, Math.ceil(nameW) + 46 + 14 + 34));
         bubbleH = 122;
@@ -247,19 +266,19 @@
         lines = wrapText(mctx, msg.text, maxTextW);
         let textW = 0;
         lines.forEach(l => { textW = Math.max(textW, mctx.measureText(l).width); });
-        bubbleW = Math.min(maxBubbleW, Math.ceil(textW) + DL.bubblePadX * 2);
-        bubbleH = lines.length * DL.lineH + DL.bubblePadY * 2;
+        bubbleW = Math.min(maxBubbleW, Math.ceil(textW) + S.bubblePadX * 2);
+        bubbleH = lines.length * S.lineH + S.bubblePadY * 2;
       }
 
-      const nickH = showNick ? 18 : 0;
-      const rowH = Math.max(DL.avatarSize, nickH + bubbleH);
+      const nickH = showNick ? S.nickH : 0;
+      const rowH = Math.max(S.avatar, nickH + bubbleH);
       blocks.push({
         kind: 'row', msg: msg, mi: i, sender: sender, isMine: isMine,
         avatarImg: avatarImg, showNick: showNick, nickH: nickH,
         lines: lines, bubbleW: bubbleW, bubbleH: bubbleH,
         imgEl: imgEl, y: y, h: rowH
       });
-      y += rowH + DL.rowGap;
+      y += rowH + S.rowGap;
     }
 
     const contentH = y + 18;
@@ -300,7 +319,7 @@
     return {
       W: W, H: H, blocks: blocks, offset: offset, contentH: contentH,
       parts: parts, isGroup: isGroup, avatarMap: avatarMap,
-      areaW: areaW, areaTop: areaTop, availH: availH
+      areaW: areaW, areaTop: areaTop, availH: availH, S: S
     };
   }
 
@@ -364,7 +383,7 @@
       ? ((config.group && config.group.name) || '群聊')
       : (opp ? opp.name : '');
     ctx.fillStyle = '#1a1a1a';
-    ctx.font = '17px ' + FONT;
+    ctx.font = '19px ' + FONT;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
     ctx.fillText(title, 22, 24);
@@ -574,7 +593,7 @@
     rr(ctx, W - 140, sendY - 16, 104, 32, 4);
     ctx.stroke();
     ctx.fillStyle = '#a0a0a0';
-    ctx.font = '14px ' + FONT;
+    ctx.font = '17px ' + FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
     ctx.fillText('发送(S)', W - 88, sendY + 1);
@@ -582,12 +601,13 @@
 
   function drawBlock(ctx, lay, block) {
     const W = lay.W;
-    const leftEdge = DL.padX;
-    const rightEdge = W - DL.padX;
+    const S = lay.S;
+    const leftEdge = S.padX;
+    const rightEdge = W - S.padX;
 
     if (block.kind === 'time') {
       ctx.fillStyle = '#999';
-      ctx.font = DL.timeSize + 'px ' + FONT;
+      ctx.font = S.timeSize + 'px ' + FONT;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
       ctx.fillText(block.text, W / 2, block.y + block.h / 2);
@@ -595,7 +615,7 @@
     }
 
     const isMine = block.isMine;
-    const av = DL.avatarSize;
+    const av = S.avatar;
     const avatarX = isMine ? (rightEdge - av) : leftEdge;
     const avatarY = block.y + (block.showNick ? 2 : 0);
 
@@ -621,7 +641,7 @@
 
     if (block.showNick) {
       ctx.fillStyle = '#999';
-      ctx.font = '12px ' + FONT;
+      ctx.font = '16px ' + FONT;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText(block.sender.name, bubbleX + 2, block.y + block.nickH / 2);
@@ -639,7 +659,7 @@
         rr(ctx, bubbleX, bubbleY, bw, bh, 4);
         ctx.fill();
         ctx.fillStyle = '#999';
-        ctx.font = '13px ' + FONT;
+        ctx.font = '17px ' + FONT;
         ctx.textAlign = 'center';
         ctx.textBaseline = 'middle';
         ctx.fillText('图片', bubbleX + bw / 2, bubbleY + bh / 2);
@@ -666,7 +686,7 @@
 
       // 文件名（过长自动换行，最多两行）
       ctx.fillStyle = '#1a1a1a';
-      ctx.font = '15px ' + FONT;
+      ctx.font = '19px ' + FONT;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       const nameMaxW = cardW - iconW - 44;
@@ -678,7 +698,7 @@
 
       // 文件大小
       ctx.fillStyle = '#9a9a9a';
-      ctx.font = '13px ' + FONT;
+      ctx.font = '16px ' + FONT;
       ctx.fillText(msg.size || '', bubbleX + 16, bubbleY + 26 + nm.length * 21 + 4);
 
       // 右侧文件类型图标（纸张形状 + 折角 + 类型标签）
@@ -734,7 +754,7 @@
       ctx.fill();
 
       ctx.fillStyle = '#9a9a9a';
-      ctx.font = '12px ' + FONT;
+      ctx.font = '15px ' + FONT;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText('微信电脑版', bubbleX + 34, fy);
@@ -847,12 +867,12 @@
       ctx.fillText(msg.note || '微信红包', bubbleX + 12, bubbleY + 46);
     } else {
       ctx.fillStyle = '#1a1a1a';
-      ctx.font = DL.fontSize + 'px ' + FONT;
+      ctx.font = S.fontSize + 'px ' + FONT;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       block.lines.forEach((line, i) => {
-        ctx.fillText(line, bubbleX + DL.bubblePadX,
-          bubbleY + DL.bubblePadY + i * DL.lineH + DL.lineH / 2);
+        ctx.fillText(line, bubbleX + S.bubblePadX,
+          bubbleY + S.bubblePadY + i * S.lineH + S.lineH / 2);
       });
     }
   }

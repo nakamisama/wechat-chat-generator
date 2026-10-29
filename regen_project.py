@@ -81,6 +81,7 @@ async def main():
         starts = []
         off = 0
         while True:
+            # 顶部对齐：若 off 落在某条消息中间，上移到该条起点
             for r in rows:
                 if r['y'] < off < r['y'] + r['h']:
                     off = max(0, r['y'] - 8)
@@ -88,13 +89,15 @@ async def main():
             starts.append(off)
             if off + availH >= contentH - 2:
                 break
-            nxt = off + availH
-            if contentH - nxt < 60:
-                break
-            off = nxt
+            off = off + availH
 
-        if starts and starts[-1] + availH < contentH - 2:
-            starts.append(max(0, contentH - availH))
+        # 末屏贴底，但若与上一屏重叠过多（<120px 新内容）则不追加
+        if starts:
+            last = starts[-1]
+            if last + availH < contentH - 2:
+                bottom_start = max(0, contentH - availH)
+                if bottom_start - last > 120:
+                    starts.append(bottom_start)
 
         starts = sorted(set(int(round(s)) for s in starts))
         print(f'  计划 {len(starts)} 张')
