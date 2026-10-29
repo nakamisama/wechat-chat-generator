@@ -10,3 +10,6 @@ __pycache__/
 
 # 素材配置保留
 !output/.gitkeep
+
+# 未被配置引用的历史素材（本地归档，不入库）
+assets/_archive/
