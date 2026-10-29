@@ -445,6 +445,9 @@
     let offset;
     if (longMode) {
       offset = 0;
+    } else if (config.alignBottom) {
+      // 末屏贴底：让对话自然收在画面底部
+      offset = Math.max(0, contentH - availH);
     } else if (config.scrollToMsg != null) {
       // 把指定消息（含其上方时间戳）对齐到可视区顶部
       const idx = Number(config.scrollToMsg);
@@ -461,6 +464,8 @@
       }
       const raw = anchor ? anchor.y - 8 : contentH - availH;
       offset = Math.max(0, Math.min(raw, Math.max(0, contentH - availH)));
+      offset = snapTop(blocks, offset);
+      offset = snapBottom(blocks, offset, availH, contentH);
     } else {
       offset = Math.max(0, contentH - availH);
     }
@@ -488,8 +493,48 @@
     return {
       W: W, H: totalH, sb: sb, contentH: contentH,
       offset: offset, longMode: longMode, blocks: blocks,
-      parts: parts, isGroup: isGroup, statusTime: statusTime
+      parts: parts, isGroup: isGroup, statusTime: statusTime,
+      areaTop: sb.h + L.navH, availH: availH
     };
+  }
+
+  // 若可视区顶部把某条消息切成半截，则上移分页边界，让该条完整露出
+  function snapTop(blocks, offset) {
+    if (offset <= 0) return 0;
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      if (b.kind === 'time') continue;
+      if (b.y + b.h > offset && b.y < offset) {
+        // 该条被顶部切开 → 上移到它的起点之前
+        return Math.max(0, b.y - 8);
+      }
+      if (b.y >= offset) break;
+    }
+    return offset;
+  }
+
+  // 若可视区底部把某条消息切成半截，则下移该分页边界，让整条消息完整露出
+  // 保护：下移后若会把顶部消息切掉，则放弃下移（宁可底部留半条，也不能切顶部）
+  function snapBottom(blocks, offset, availH, contentH) {
+    const bottom = offset + availH;
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      if (b.kind === 'time') continue;
+      if (b.y < bottom && b.y + b.h > bottom - 6) {
+        const newOffset = Math.max(0, b.y + b.h + 12 - availH);
+        if (newOffset <= offset) return offset;
+        const capped = Math.min(newOffset, Math.max(0, contentH - availH));
+        // 检查下移后顶部是否仍有消息被切
+        for (let j = 0; j < blocks.length; j++) {
+          const t = blocks[j];
+          if (t.kind === 'time') continue;
+          if (t.y + t.h > capped && t.y < capped) return offset;
+          if (t.y >= capped) break;
+        }
+        return capped;
+      }
+    }
+    return offset;
   }
 
   // ---------- 绘制：状态栏 ----------
@@ -1008,40 +1053,9 @@
 
   // ---------- 屏幕特征绘制 ----------
   function drawCutout(ctx, lay, device) {
-    const W = lay.W;
-    const sb = lay.sb;
-    const cx = W / 2;
-
-    if (device.cutout === 'island') {
-      // iPhone 灵动岛：黑色圆角胶囊
-      const w = device.cutoutW, h = device.cutoutH;
-      const x = cx - w / 2, y = sb.pad + 3;
-      ctx.fillStyle = '#000';
-      rr(ctx, x, y, w, h, h / 2);
-      ctx.fill();
-    } else if (device.cutout === 'punch' || device.cutout === 'punch-center') {
-      // 安卓居中挖孔：黑色圆形
-      const d = device.cutoutW;
-      const y = sb.pad + (sb.h - sb.pad) / 2;
-      ctx.fillStyle = '#000';
-      ctx.beginPath();
-      ctx.arc(cx, y, d / 2, 0, Math.PI * 2);
-      ctx.fill();
-    } else if (device.cutout === 'notch') {
-      // 传统刘海
-      const w = 156, h = 28;
-      const x = cx - w / 2;
-      ctx.fillStyle = '#000';
-      ctx.beginPath();
-      ctx.moveTo(x, 0);
-      ctx.lineTo(x + w, 0);
-      ctx.lineTo(x + w, h - 8);
-      ctx.quadraticCurveTo(x + w, h, x + w - 10, h);
-      ctx.lineTo(x + 10, h);
-      ctx.quadraticCurveTo(x, h, x, h - 8);
-      ctx.closePath();
-      ctx.fill();
-    }
+    // 说明：真机截图（系统截屏 / 微信保存图片）不包含屏幕物理开孔，
+    // 灵动岛、刘海、挖孔都不会出现在截图里，因此这里一律不绘制。
+    return;
   }
 
   function drawHomeBar(ctx, lay, device) {
@@ -1170,6 +1184,7 @@
     download: download,
     planShots: planShots,
     wechatTime: wechatTime,
+    buildLayout: buildLayout,
     normalizeParticipants: normalizeParticipants,
     DEVICES: DEVICES,
     ensureFonts: ensureFonts,

@@ -3,19 +3,20 @@
   'use strict';
 
   const DL = {
-    winW: 820,
-    winH: 700,
-    titleBarH: 46,
-    inputH: 92,
-    avatarSize: 38,
+    winW: 1440,
+    winH: 908,
+    titleBarH: 60,
+    inputH: 168,
+    avatarSize: 42,
     bubblePadX: 12,
-    bubblePadY: 9,
-    bubbleR: 6,
-    fontSize: 14,
-    lineH: 20,
-    rowGap: 16,
-    timeSize: 13,
-    padX: 24
+    bubblePadY: 10,
+    bubbleR: 4,
+    fontSize: 15,
+    lineH: 22,
+    rowGap: 22,
+    timeSize: 12,
+    padX: 26,
+    gap: 16
   };
 
   let FONT = '"PingFang SC","Microsoft YaHei","Helvetica Neue",sans-serif';
@@ -94,10 +95,9 @@
     return '晚上';
   }
 
+  // Windows 微信电脑版时间显示：24 小时制，如 "14:40"
   function clockText(d) {
-    let hh = d.getHours() % 12;
-    if (hh === 0) hh = 12;
-    return periodOf(d.getHours()) + ' ' + hh + ':' + String(d.getMinutes()).padStart(2, '0');
+    return String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
   }
 
   function wechatTime(iso, captureDate) {
@@ -108,9 +108,9 @@
     const t = clockText(d);
     const dayOf = x => new Date(x.getFullYear(), x.getMonth(), x.getDate()).getTime();
     const diff = Math.round((dayOf(cap) - dayOf(d)) / 86400000);
+    // 电脑版：当天只显示时间；更早显示 月-日 + 时间
     if (diff === 0) return t;
     if (diff === 1) return '昨天 ' + t;
-    if (diff > 1 && diff < 7) return WEEK[d.getDay()] + ' ' + t;
     if (d.getFullYear() === cap.getFullYear()) {
       return (d.getMonth() + 1) + '月' + d.getDate() + '日 ' + t;
     }
@@ -165,7 +165,8 @@
   }
 
   async function buildLayout(config) {
-    const W = DL.winW, H = DL.winH;
+    const W = config.winW || DL.winW;
+    const H = config.winH || DL.winH;
     const parts = normalizeParticipants(config);
     const isGroup = !!(config.group && config.group.enabled);
 
@@ -234,7 +235,12 @@
       } else if (msg.type === 'redpacket') {
         bubbleW = 210; bubbleH = 72;
       } else if (msg.type === 'file') {
-        bubbleW = 268; bubbleH = 92;
+        // 卡片宽度按文件名自适应（单行放得下就单行），限制在合理区间
+        const nmCtx = mctx;
+        nmCtx.font = '15px ' + FONT;
+        const nameW = nmCtx.measureText(msg.name || '文件').width;
+        bubbleW = Math.max(230, Math.min(340, Math.ceil(nameW) + 46 + 14 + 34));
+        bubbleH = 122;
       } else if (msg.type === 'link') {
         bubbleW = 280; bubbleH = 80;
       } else {
@@ -261,7 +267,10 @@
     const availH = H - areaTop - DL.inputH;
 
     let offset;
-    if (config.scrollToMsg != null) {
+    if (config.forceOffset != null) {
+      // 精确指定滚动位置（用于分屏截图，避免自动吸附漂移）
+      offset = Math.max(0, Math.min(Number(config.forceOffset), Math.max(0, contentH - availH)));
+    } else if (config.scrollToMsg != null) {
       const idx = Number(config.scrollToMsg);
       let anchor = null;
       for (let i = blocks.length - 1; i >= 0; i--) {
@@ -273,7 +282,16 @@
         if (prev && prev.kind === 'time' && prev.mi === idx) anchor = prev;
       }
       const raw = anchor ? anchor.y - 12 : contentH - availH;
-      offset = Math.max(0, Math.min(raw, Math.max(0, contentH - availH)));
+      const maxOffset = Math.max(0, contentH - availH);
+      offset = Math.max(0, Math.min(raw, maxOffset));
+      // 底部不切半条：若能完整容纳则下移；否则接受底部半条（真实聊天窗口就是这样连续滚动）
+      const snapped = snapBottom(blocks, offset, availH, contentH);
+      if (snapped !== offset && !topIsCut(blocks, snapped)) {
+        offset = snapped;
+      } else if (topIsCut(blocks, offset)) {
+        // 顶部被切（锚点前有半条）→ 回退到顶部完整位置
+        offset = Math.min(snapTop(blocks, offset), maxOffset);
+      }
     } else {
       offset = Math.max(0, contentH - availH);
     }
@@ -281,64 +299,170 @@
     return {
       W: W, H: H, blocks: blocks, offset: offset, contentH: contentH,
       parts: parts, isGroup: isGroup, avatarMap: avatarMap,
-      areaW: areaW
+      areaW: areaW, areaTop: areaTop, availH: availH
     };
+  }
+
+  // 若可视区顶部把某条消息切成半截，则上移分页边界
+  function snapTop(blocks, offset) {
+    if (offset <= 0) return 0;
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      if (b.kind === 'time') continue;
+      if (b.y + b.h > offset && b.y < offset) {
+        // 顶部切半条：上移到该条起点之前
+        return Math.max(0, b.y - 8);
+      }
+      if (b.y >= offset) break;
+    }
+    return offset;
+  }
+
+  // 顶部裁切检查：若 offset 处仍切着某条消息，返回 true
+  function topIsCut(blocks, offset) {
+    if (offset <= 0) return false;
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      if (b.kind === 'time') continue;
+      if (b.y + b.h > offset && b.y < offset) return true;
+      if (b.y >= offset) break;
+    }
+    return false;
+  }
+
+  // 若可视区底部把某条消息切成半截，则下移分页边界，让整条消息完整露出
+  // 前提：下移后不能切掉顶部消息（否则保留原 offset）
+  function snapBottom(blocks, offset, availH, contentH) {
+    const bottom = offset + availH;
+    for (let i = 0; i < blocks.length; i++) {
+      const b = blocks[i];
+      if (b.kind === 'time') continue;
+      if (b.y < bottom && b.y + b.h > bottom - 6) {
+        const newOffset = Math.max(0, b.y + b.h + 12 - availH);
+        if (newOffset <= offset) return offset;
+        const capped = Math.min(newOffset, Math.max(0, contentH - availH));
+        // 若下移会切掉顶部整条消息，则放弃下移
+        if (topIsCut(blocks, capped)) return offset;
+        return capped;
+      }
+    }
+    return offset;
   }
 
   function drawTitleBar(ctx, lay, config) {
     const W = lay.W;
-    ctx.fillStyle = '#f9f9f9';
+    // ── Windows 微信主窗口标题栏 ──
+    ctx.fillStyle = '#f7f7f7';
     ctx.fillRect(0, 0, W, DL.titleBarH);
-    ctx.fillStyle = '#e5e5e5';
+    ctx.fillStyle = '#e9e9e9';
     ctx.fillRect(0, DL.titleBarH - 1, W, 1);
 
+    // 左上角：联系人 / 群名称
     const opp = lay.parts.list.find(p => !p.isMe);
     let title = lay.isGroup
       ? ((config.group && config.group.name) || '群聊')
       : (opp ? opp.name : '');
     ctx.fillStyle = '#1a1a1a';
-    ctx.font = '16px ' + FONT;
+    ctx.font = '17px ' + FONT;
     ctx.textAlign = 'left';
     ctx.textBaseline = 'middle';
-    let t = title;
-    while (ctx.measureText(t).width > W - 260 && t.length > 4) t = t.slice(0, -1);
-    ctx.fillText(t, 22, DL.titleBarH / 2);
+    ctx.fillText(title, 22, 24);
 
-    const cy = DL.titleBarH / 2;
-    let bx = W - 28;
+    const cy = 22;
 
-    ctx.strokeStyle = '#666';
-    ctx.lineWidth = 1.2;
+    // 右上角：窗口按钮（最小化 / 最大化 / 关闭）
+    const closeCx = W - 26;
+    ctx.strokeStyle = '#5f5f5f';
+    ctx.lineWidth = 1.1;
+
+    // 关闭 ×
     ctx.beginPath();
-    ctx.moveTo(bx - 5, cy - 5);
-    ctx.lineTo(bx + 5, cy + 5);
-    ctx.moveTo(bx + 5, cy - 5);
-    ctx.lineTo(bx - 5, cy + 5);
+    ctx.moveTo(closeCx - 5.5, cy - 5.5);
+    ctx.lineTo(closeCx + 5.5, cy + 5.5);
+    ctx.moveTo(closeCx + 5.5, cy - 5.5);
+    ctx.lineTo(closeCx - 5.5, cy + 5.5);
     ctx.stroke();
-    bx -= 44;
 
-    ctx.strokeRect(bx - 5, cy - 5, 10, 10);
-    bx -= 44;
+    // 最大化 □
+    const maxCx = closeCx - 44;
+    ctx.strokeRect(maxCx - 5.5, cy - 5.5, 11, 11);
 
+    // 最小化 —
+    const minCx = maxCx - 44;
     ctx.beginPath();
-    ctx.moveTo(bx - 5, cy);
-    ctx.lineTo(bx + 5, cy);
+    ctx.moveTo(minCx - 6, cy + 1);
+    ctx.lineTo(minCx + 6, cy + 1);
     ctx.stroke();
-    bx -= 44;
 
-    // 置顶图钉
+    // ── 第二行：语音 / 视频 / 更多（靠右），左上角窗口置顶图钉 ──
+    const ry = 44;
+    let bx = W - 150;
+
+    // 更多 ……
+    ctx.fillStyle = '#4d4d4d';
+    for (let i = 0; i < 3; i++) {
+      ctx.beginPath();
+      ctx.arc(bx - 4 + i * 7, ry, 1.7, 0, Math.PI * 2);
+      ctx.fill();
+    }
+    bx -= 46;
+
+    // 视频通话
+    ctx.strokeStyle = '#4d4d4d';
+    ctx.lineWidth = 1.5;
     ctx.beginPath();
-    ctx.moveTo(bx - 4, cy - 6);
-    ctx.lineTo(bx + 4, cy - 6);
-    ctx.lineTo(bx + 3, cy - 1);
-    ctx.lineTo(bx + 5, cy + 1);
-    ctx.lineTo(bx - 5, cy + 1);
-    ctx.lineTo(bx - 3, cy - 1);
+    ctx.moveTo(bx - 8, ry - 5);
+    ctx.lineTo(bx + 2, ry - 5);
+    ctx.lineTo(bx + 2, ry + 5);
+    ctx.lineTo(bx - 8, ry + 5);
     ctx.closePath();
     ctx.stroke();
     ctx.beginPath();
-    ctx.moveTo(bx, cy + 1);
-    ctx.lineTo(bx, cy + 6);
+    ctx.moveTo(bx + 2, ry - 1);
+    ctx.lineTo(bx + 8, ry - 5);
+    ctx.lineTo(bx + 8, ry + 5);
+    ctx.lineTo(bx + 2, ry + 1);
+    ctx.closePath();
+    ctx.stroke();
+    bx -= 44;
+
+    // 语音通话（话筒）
+    ctx.beginPath();
+    ctx.moveTo(bx, ry - 6);
+    ctx.quadraticCurveTo(bx + 4, ry - 6, bx + 4, ry - 2);
+    ctx.lineTo(bx + 4, ry + 1);
+    ctx.quadraticCurveTo(bx + 4, ry + 5, bx, ry + 5);
+    ctx.quadraticCurveTo(bx - 4, ry + 5, bx - 4, ry + 1);
+    ctx.lineTo(bx - 4, ry - 2);
+    ctx.quadraticCurveTo(bx - 4, ry - 6, bx, ry - 6);
+    ctx.closePath();
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(bx, ry + 5);
+    ctx.lineTo(bx, ry + 9);
+    ctx.moveTo(bx - 3.5, ry + 9);
+    ctx.lineTo(bx + 3.5, ry + 9);
+    ctx.stroke();
+
+    // 左上角第二行：置顶图钉
+    ctx.strokeStyle = '#8a8a8a';
+    ctx.lineWidth = 1.3;
+    ctx.lineCap = 'round';
+    const px = 26, py = 46;
+    // 图钉帽
+    ctx.beginPath();
+    ctx.moveTo(px - 7, py - 5);
+    ctx.lineTo(px + 7, py - 5);
+    ctx.lineTo(px + 2, py + 1);
+    ctx.lineTo(px + 2, py + 6);
+    ctx.lineTo(px - 2, py + 6);
+    ctx.lineTo(px - 2, py + 1);
+    ctx.closePath();
+    ctx.stroke();
+    // 针身
+    ctx.beginPath();
+    ctx.moveTo(px, py + 6);
+    ctx.lineTo(px, py + 10);
     ctx.stroke();
   }
 
@@ -365,39 +489,94 @@
     const W = lay.W, H = lay.H;
     const top = H - DL.inputH;
 
-    ctx.fillStyle = '#f5f5f5';
+    // Windows 微信：输入区整块白色，顶部一条分割线
+    ctx.fillStyle = '#ffffff';
     ctx.fillRect(0, top, W, DL.inputH);
-    ctx.fillStyle = '#e8e8e8';
+    ctx.fillStyle = '#e9e9e9';
     ctx.fillRect(0, top, W, 1);
 
-    // 工具栏
-    const iy = top + 18;
-    const tools = ['😊', '📁', '📷', '✂️', '🎤'];
-    tools.forEach((t, i) => {
-      ctx.fillStyle = '#666';
-      ctx.font = '16px ' + FONT;
-      ctx.textAlign = 'center';
-      ctx.textBaseline = 'middle';
-      ctx.fillText(t, 26 + i * 32, iy);
-    });
+    // ── 工具栏图标行（表情 / 文件 / 文件夹 / 剪刀 / 语音）──
+    const iy = top + 30;
+    ctx.strokeStyle = '#4d4d4d';
+    ctx.fillStyle = '#4d4d4d';
+    ctx.lineWidth = 1.6;
+    ctx.lineCap = 'round';
+    ctx.lineJoin = 'round';
 
-    // 输入框
-    ctx.fillStyle = '#fff';
-    rr(ctx, 20, top + 32, W - 40, 40, 3);
+    let ix = 32;
+
+    // 表情：圆脸 + 双眼 + 微笑
+    ctx.beginPath(); ctx.arc(ix, iy, 11, 0, Math.PI * 2); ctx.stroke();
+    ctx.beginPath();
+    ctx.arc(ix - 3.5, iy - 3, 1.2, 0, Math.PI * 2);
+    ctx.arc(ix + 3.5, iy - 3, 1.2, 0, Math.PI * 2);
     ctx.fill();
-    ctx.strokeStyle = '#e0e0e0';
-    ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(ix, iy + 1, 5, 0.18 * Math.PI, 0.82 * Math.PI); ctx.stroke();
+
+    // 立方体（收藏/文件）
+    ix += 62;
+    ctx.beginPath();
+    ctx.moveTo(ix, iy - 11); ctx.lineTo(ix + 10, iy - 5);
+    ctx.lineTo(ix + 10, iy + 6); ctx.lineTo(ix, iy + 12);
+    ctx.lineTo(ix - 10, iy + 6); ctx.lineTo(ix - 10, iy - 5);
+    ctx.closePath(); ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ix - 10, iy - 5); ctx.lineTo(ix, iy + 1); ctx.lineTo(ix + 10, iy - 5);
+    ctx.moveTo(ix, iy + 1); ctx.lineTo(ix, iy + 12);
     ctx.stroke();
 
-    // 发送按钮（右下，小尺寸灰色）
-    ctx.fillStyle = '#e8e8e8';
-    rr(ctx, W - 76, top + 54, 56, 22, 3);
+    // 文件夹
+    ix += 62;
+    ctx.beginPath();
+    ctx.moveTo(ix - 11, iy - 7);
+    ctx.lineTo(ix - 3, iy - 7);
+    ctx.lineTo(ix - 1, iy - 4);
+    ctx.lineTo(ix + 11, iy - 4);
+    ctx.lineTo(ix + 11, iy + 8);
+    ctx.lineTo(ix - 11, iy + 8);
+    ctx.closePath(); ctx.stroke();
+
+    // 剪刀
+    ix += 62;
+    ctx.beginPath();
+    ctx.arc(ix - 5, iy + 6, 3.2, 0, Math.PI * 2);
+    ctx.arc(ix + 5, iy + 6, 3.2, 0, Math.PI * 2);
+    ctx.stroke();
+    ctx.beginPath();
+    ctx.moveTo(ix - 3.5, iy + 4); ctx.lineTo(ix + 6, iy - 9);
+    ctx.moveTo(ix + 3.5, iy + 4); ctx.lineTo(ix - 6, iy - 9);
+    ctx.stroke();
+
+    // 下拉小箭头
+    ix += 26;
+    ctx.beginPath();
+    ctx.moveTo(ix - 4, iy + 1); ctx.lineTo(ix, iy + 5); ctx.lineTo(ix + 4, iy + 1);
+    ctx.stroke();
+
+    // ── 右下角：展开编辑器图标 + 发送(S) ──
+    const sendY = H - 30;
+    ctx.strokeStyle = '#9a9a9a';
+    ctx.lineWidth = 1.6;
+    const expandX = W - 170;
+    ctx.beginPath();
+    ctx.moveTo(expandX, sendY + 8); ctx.lineTo(expandX, sendY - 8); ctx.lineTo(expandX + 14, sendY - 8);
+    ctx.moveTo(expandX + 24, sendY - 8); ctx.lineTo(expandX + 26, sendY - 8); ctx.lineTo(expandX + 26, sendY + 8);
+    ctx.lineTo(expandX + 12, sendY + 8);
+    ctx.stroke();
+
+    // 发送按钮
+    ctx.fillStyle = '#f2f2f2';
+    rr(ctx, W - 140, sendY - 16, 104, 32, 4);
     ctx.fill();
-    ctx.fillStyle = '#999';
-    ctx.font = '12px ' + FONT;
+    ctx.strokeStyle = '#e2e2e2';
+    ctx.lineWidth = 1;
+    rr(ctx, W - 140, sendY - 16, 104, 32, 4);
+    ctx.stroke();
+    ctx.fillStyle = '#a0a0a0';
+    ctx.font = '14px ' + FONT;
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
-    ctx.fillText('发送(S)', W - 48, top + 65);
+    ctx.fillText('发送(S)', W - 88, sendY + 1);
   }
 
   function drawBlock(ctx, lay, block) {
@@ -473,64 +652,77 @@
       const iconStyle = fileIconStyle(msg.name);
 
       ctx.fillStyle = '#fff';
-      rr(ctx, bubbleX, bubbleY, cardW, cardH, 6);
+      rr(ctx, bubbleX, bubbleY, cardW, cardH, 4);
       ctx.fill();
-      ctx.strokeStyle = '#ebebeb';
+      ctx.strokeStyle = '#ededed';
       ctx.lineWidth = 1;
-      rr(ctx, bubbleX, bubbleY, cardW, cardH, 6);
+      rr(ctx, bubbleX, bubbleY, cardW, cardH, 4);
       ctx.stroke();
 
-      const iconSize = 40;
-      const iconX = bubbleX + cardW - iconSize - 14;
+      const iconW = 46, iconH = 56;
+      const iconX = bubbleX + cardW - iconW - 14;
       const iconY = bubbleY + 14;
 
-      // 文件名
+      // 文件名（过长自动换行，最多两行）
       ctx.fillStyle = '#1a1a1a';
       ctx.font = '15px ' + FONT;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
-      let fname = msg.name || '文件';
-      const nameMaxW = cardW - iconSize - 50;
-      let disp = fname;
-      while (ctx.measureText(disp).width > nameMaxW && disp.length > 6) disp = disp.slice(0, -1);
-      if (disp !== fname) disp = disp.slice(0, -1) + '…';
-      ctx.fillText(disp, bubbleX + 16, iconY + 11);
+      const nameMaxW = cardW - iconW - 44;
+      const rawName = msg.name || '文件';
+      const nm = wrapText(ctx, rawName, nameMaxW).slice(0, 2);
+      nm.forEach((ln, i) => {
+        ctx.fillText(ln, bubbleX + 16, bubbleY + 26 + i * 21);
+      });
 
       // 文件大小
-      ctx.fillStyle = '#999';
+      ctx.fillStyle = '#9a9a9a';
       ctx.font = '13px ' + FONT;
-      ctx.fillText(msg.size || '', bubbleX + 16, iconY + 33);
+      ctx.fillText(msg.size || '', bubbleX + 16, bubbleY + 26 + nm.length * 21 + 4);
 
-      // 右侧彩色图标（圆角方块 + 白色字母）
+      // 右侧文件类型图标（纸张形状 + 折角 + 类型标签）
       ctx.fillStyle = iconStyle.color;
-      rr(ctx, iconX, iconY, iconSize, iconSize, 3);
+      ctx.beginPath();
+      ctx.moveTo(iconX, iconY);
+      ctx.lineTo(iconX + iconW - 12, iconY);
+      ctx.lineTo(iconX + iconW, iconY + 12);
+      ctx.lineTo(iconX + iconW, iconY + iconH);
+      ctx.lineTo(iconX, iconY + iconH);
+      ctx.closePath();
       ctx.fill();
+      // 折角
+      ctx.fillStyle = 'rgba(255,255,255,0.45)';
+      ctx.beginPath();
+      ctx.moveTo(iconX + iconW - 12, iconY);
+      ctx.lineTo(iconX + iconW, iconY + 12);
+      ctx.lineTo(iconX + iconW - 12, iconY + 12);
+      ctx.closePath();
+      ctx.fill();
+      // 类型文字
       ctx.fillStyle = '#fff';
-      ctx.font = 'bold 22px ' + FONT;
+      ctx.font = 'bold 12px ' + FONT;
       ctx.textAlign = 'center';
       ctx.textBaseline = 'middle';
-      ctx.fillText(iconStyle.label, iconX + iconSize / 2, iconY + iconSize / 2 + 1);
+      const label = iconStyle.label === 'X' ? 'XLS' : iconStyle.label === 'W' ? 'DOC' : 'PDF';
+      ctx.fillText(label, iconX + iconW / 2, iconY + iconH - 16);
 
       // 底部分隔线
-      ctx.fillStyle = '#f2f2f2';
-      ctx.fillRect(bubbleX + 1, bubbleY + cardH - 27, cardW - 2, 1);
+      ctx.fillStyle = '#f0f0f0';
+      ctx.fillRect(bubbleX + 1, bubbleY + cardH - 32, cardW - 2, 1);
 
       // 底部：微信小图标 + "微信电脑版"
-      const fy = bubbleY + cardH - 13;
+      const fy = bubbleY + cardH - 16;
       ctx.fillStyle = '#07c160';
       rr(ctx, bubbleX + 16, fy - 6, 12, 12, 3);
       ctx.fill();
-      // 微信图标中的两个小白点
       ctx.fillStyle = '#fff';
       ctx.beginPath();
       ctx.arc(bubbleX + 20, fy - 1.5, 1.3, 0, Math.PI * 2);
-      ctx.fill();
-      ctx.beginPath();
-      ctx.arc(bubbleX + 24.5, fy - 1.5, 1.1, 0, Math.PI * 2);
+      ctx.arc(bubbleX + 24, fy - 1.5, 1.0, 0, Math.PI * 2);
       ctx.fill();
 
-      ctx.fillStyle = '#999';
-      ctx.font = '11px ' + FONT;
+      ctx.fillStyle = '#9a9a9a';
+      ctx.font = '12px ' + FONT;
       ctx.textAlign = 'left';
       ctx.textBaseline = 'middle';
       ctx.fillText('微信电脑版', bubbleX + 34, fy);
@@ -658,22 +850,27 @@
       await window.WXCanvas.ensureFonts();
     }
     const lay = await buildLayout(config);
+    const WW = lay.W, HH = lay.H;
 
     const canvas = document.createElement('canvas');
-    canvas.width = DL.winW * 2;
-    canvas.height = DL.winH * 2;
+    canvas.width = WW * 2;
+    canvas.height = HH * 2;
     const ctx = canvas.getContext('2d');
     ctx.scale(2, 2);
 
     ctx.fillStyle = '#f5f5f5';
-    ctx.fillRect(0, 0, DL.winW, DL.winH);
+    ctx.fillRect(0, 0, WW, HH);
 
     const areaTop = DL.titleBarH;
-    const areaH = DL.winH - areaTop - DL.inputH;
+    const areaH = HH - areaTop - DL.inputH;
+
+    // 聊天区背景：浅灰（参考图 #f5f5f5）
+    ctx.fillStyle = '#f5f5f5';
+    ctx.fillRect(0, areaTop, WW, areaH);
 
     ctx.save();
     ctx.beginPath();
-    ctx.rect(0, areaTop, DL.winW, areaH);
+    ctx.rect(0, areaTop, WW, areaH);
     ctx.clip();
     ctx.translate(0, areaTop - lay.offset);
     lay.blocks.forEach(b => drawBlock(ctx, lay, b));
@@ -688,6 +885,7 @@
 
   window.WXDesktop = {
     render: renderDesktop,
-    DL: DL
+    DL: DL,
+    buildLayout: buildLayout
   };
 })();
