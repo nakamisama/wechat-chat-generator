@@ -713,13 +713,24 @@
 
       // 底部：微信小图标 + "微信电脑版"
       const fy = bubbleY + cardH - 16;
+      const wx = bubbleX + 22, wy = fy - 1;
+      // 绿色圆形气泡主体
       ctx.fillStyle = '#07c160';
-      rr(ctx, bubbleX + 16, fy - 6, 12, 12, 3);
-      ctx.fill();
-      ctx.fillStyle = '#fff';
       ctx.beginPath();
-      ctx.arc(bubbleX + 20, fy - 1.5, 1.3, 0, Math.PI * 2);
-      ctx.arc(bubbleX + 24, fy - 1.5, 1.0, 0, Math.PI * 2);
+      ctx.arc(wx, wy, 6.5, 0, Math.PI * 2);
+      ctx.fill();
+      // 左下小尾巴，形成对话气泡轮廓
+      ctx.beginPath();
+      ctx.moveTo(wx - 5.2, wy + 3.6);
+      ctx.lineTo(wx - 7.4, wy + 7.2);
+      ctx.lineTo(wx - 2.4, wy + 5.6);
+      ctx.closePath();
+      ctx.fill();
+      // 两个白色小眼睛
+      ctx.fillStyle = '#ffffff';
+      ctx.beginPath();
+      ctx.arc(wx - 2.3, wy - 1.2, 1.3, 0, Math.PI * 2);
+      ctx.arc(wx + 2.3, wy - 1.2, 1.3, 0, Math.PI * 2);
       ctx.fill();
 
       ctx.fillStyle = '#9a9a9a';

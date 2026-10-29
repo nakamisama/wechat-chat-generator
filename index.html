@@ -945,9 +945,7 @@ renderMembers();
 renderMsgList();
 doPreview();
 
-if (location.protocol.startsWith('http')) {
-  loadPreset('biquan').catch(() => {});
-}
+// 预设配置只保留本地，线上/无配置时不自动加载
 </script>
 </body>
 </html>

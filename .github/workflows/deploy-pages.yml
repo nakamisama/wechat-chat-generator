@@ -1,0 +1,44 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Prepare site
+        run: |
+          mkdir -p _site
+          # 只发布网页运行所需文件，排除本地配置、脚本与素材
+          cp -r index.html css js fonts avatars _site/
+          cp -r configs/_template.json _site/configs_template.json 2>/dev/null || true
+          mkdir -p _site/configs
+          # 线上只放脱敏模板，真实项目配置不发布
+          cp configs/_template.json _site/configs/_template.json 2>/dev/null || true
+          touch _site/.nojekyll
+
+      - uses: actions/configure-pages@v4
+
+      - uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - id: deployment
+        uses: actions/deploy-pages@v4
