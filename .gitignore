@@ -24,3 +24,6 @@ avatars/projects/
 # 项目现场照片（含真实场景）
 assets/gen_*.jpg
 assets/gen_*.png
+
+# 项目数据（客户信息，只保留本地）
+local/
