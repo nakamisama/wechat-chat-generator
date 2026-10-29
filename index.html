@@ -1,0 +1,953 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>微信聊天生成器 · 网页版</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; font-family: "Microsoft YaHei", "PingFang SC", sans-serif;
+    background: #eef0f2; color: #222; height: 100vh; display: flex; overflow: hidden;
+  }
+  .panel {
+    width: 450px; background: #fff; border-right: 1px solid #dfe3e8;
+    overflow-y: auto; padding: 18px 18px 70px; flex-shrink: 0;
+  }
+  .panel h1 { font-size: 18px; margin: 0 0 4px; }
+  .panel .sub { font-size: 12px; color: #888; margin-bottom: 14px; }
+  .panel h2 {
+    font-size: 13px; margin: 18px 0 8px; color: #444;
+    border-left: 3px solid #07c160; padding-left: 8px; font-weight: 600;
+    display: flex; justify-content: space-between; align-items: center;
+  }
+  .panel h2 .tag { font-size: 10px; color: #fff; background: #07c160; padding: 1px 6px; border-radius: 8px; font-weight: 400; }
+  .field { margin-bottom: 9px; }
+  .field label { display: block; font-size: 12px; color: #666; margin-bottom: 4px; }
+  .field input[type=text], .field input[type=date], .field input[type=datetime-local],
+  .field select, .field textarea {
+    width: 100%; padding: 7px 10px; border: 1px solid #d5d9de; border-radius: 5px;
+    font-size: 13px; font-family: inherit; outline: none;
+  }
+  .field input:focus, .field select:focus { border-color: #07c160; }
+  .row2 { display: flex; gap: 8px; }
+  .row2 > * { flex: 1; min-width: 0; }
+  .row3 { display: flex; gap: 6px; }
+  .row3 > * { flex: 1; min-width: 0; }
+
+  .avatar-picker { display: grid; grid-template-columns: repeat(9, 1fr); gap: 3px; margin-top: 6px; }
+  .avatar-picker img {
+    width: 100%; aspect-ratio: 1; object-fit: cover; border-radius: 4px;
+    cursor: pointer; border: 2px solid transparent;
+  }
+  .avatar-picker img:hover { opacity: .82; }
+  .avatar-picker img.selected { border-color: #07c160; }
+
+  .member-list { border: 1px solid #e3e6ea; border-radius: 6px; overflow: hidden; }
+  .member-item { display: flex; align-items: center; gap: 8px; padding: 7px 9px; border-bottom: 1px solid #f2f4f6; }
+  .member-item:last-child { border-bottom: none; }
+  .member-item img { width: 30px; height: 30px; border-radius: 4px; object-fit: cover; flex-shrink: 0; background: #eee; }
+  .member-item input { flex: 1; min-width: 0; border: none; border-bottom: 1px dashed #ddd; font-size: 12px; padding: 3px 2px; outline: none; font-family: inherit; }
+  .member-item input:focus { border-bottom-color: #07c160; }
+  .member-item .me-tag { font-size: 10px; color: #07c160; border: 1px solid #07c160; border-radius: 3px; padding: 0 4px; flex-shrink: 0; }
+  .member-item button { border: none; background: #eef0f2; border-radius: 3px; cursor: pointer; padding: 3px 6px; font-size: 11px; color: #555; flex-shrink: 0; }
+  .member-item button.del { background: #fee; color: #c33; }
+
+  .msg-list { border: 1px solid #e3e6ea; border-radius: 6px; max-height: 290px; overflow-y: auto; }
+  .msg-item {
+    display: flex; align-items: center; gap: 5px; padding: 6px 8px;
+    border-bottom: 1px solid #f2f4f6; font-size: 12px;
+  }
+  .msg-item:last-child { border-bottom: none; }
+  .msg-item .badge { padding: 1px 5px; border-radius: 3px; font-size: 10px; color: #fff; flex-shrink: 0; }
+  .badge.mine { background: #07c160; }
+  .badge.other { background: #98a2ad; }
+  .badge.time { background: #c5cbd2; }
+  .msg-item .who { font-size: 10px; color: #7a8794; flex-shrink: 0; max-width: 54px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .msg-item .txt { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: #666; min-width: 0; }
+  .msg-item button {
+    border: none; background: #eef0f2; color: #555; border-radius: 3px;
+    cursor: pointer; padding: 2px 6px; font-size: 11px; flex-shrink: 0;
+  }
+  .msg-item button:hover { background: #dfe3e8; }
+  .msg-item button.del { background: #fee; color: #c33; }
+
+  .btn {
+    padding: 8px 14px; border: none; border-radius: 5px; cursor: pointer;
+    font-size: 13px; font-family: inherit; transition: filter .12s;
+  }
+  .btn:hover { filter: brightness(.94); }
+  .btn:disabled { opacity: .5; cursor: not-allowed; }
+  .btn-primary { background: #07c160; color: #fff; font-weight: 600; }
+  .btn-blue { background: #2563eb; color: #fff; font-weight: 600; }
+  .btn-secondary { background: #eef0f2; color: #333; }
+  .btn-sm { padding: 5px 10px; font-size: 12px; }
+  .btn-row { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+  .btn-block { width: 100%; padding: 11px; font-size: 14px; }
+
+  .switch { display: flex; align-items: center; gap: 6px; font-size: 12px; color: #555; cursor: pointer; }
+
+  .preview {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    justify-content: flex-start; overflow: auto; padding: 26px; gap: 12px;
+  }
+  .preview-toolbar {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    background: #fff; padding: 10px 16px; border-radius: 8px;
+    box-shadow: 0 2px 10px rgba(0,0,0,.07); font-size: 13px;
+  }
+  .preview-toolbar .zoom { display: flex; align-items: center; gap: 6px; color: #666; }
+  .preview-toolbar input[type=range] { width: 100px; }
+  #previewBox { display: flex; justify-content: center; width: 100%; }
+  #previewBox canvas { box-shadow: 0 8px 32px rgba(0,0,0,.18); border-radius: 2px; max-width: 100%; height: auto; }
+
+  .toast {
+    position: fixed; left: 50%; bottom: 40px; transform: translateX(-50%) translateY(20px);
+    background: rgba(30,34,38,.94); color: #fff; padding: 11px 22px; border-radius: 8px;
+    font-size: 13px; opacity: 0; pointer-events: none; transition: all .25s; z-index: 999;
+    max-width: 70vw; text-align: center;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  .rule-box {
+    background: #fffbe6; border: 1px solid #ffe58f; border-radius: 6px;
+    padding: 10px 12px; font-size: 11.5px; line-height: 1.75; color: #614700;
+    margin-bottom: 10px;
+  }
+  .rule-box b { color: #874d00; }
+  .rule-box code {
+    background: #fff; border: 1px solid #ffd666; border-radius: 3px;
+    padding: 0 4px; font-size: 11px; color: #874d00; margin: 0 1px;
+  }
+  .rule-note { color: #ad8b00; font-size: 11px; }
+  .tip { font-size: 11px; color: #98a2ad; line-height: 1.6; margin-top: 8px; background: #f7f8fa; padding: 8px 10px; border-radius: 5px; }
+  .status-line { font-size: 12px; color: #07c160; margin-top: 6px; min-height: 16px; }
+  .hidden { display: none !important; }
+</style>
+</head>
+<body>
+
+<div class="panel">
+  <h1>微信聊天生成器</h1>
+  <div class="sub">纯网页版 · 支持单聊/群聊 · 点击直接下载</div>
+
+  <h2>手机与输出</h2>
+  <div class="field">
+    <label>界面形态</label>
+    <select id="modeSelect">
+      <option value="mobile">手机微信（竖屏截图）</option>
+      <option value="desktop">电脑微信（桌面窗口截图）</option>
+    </select>
+  </div>
+  <div class="field" id="deviceField"><select id="deviceSelect"></select></div>
+  <div class="row3">
+    <div class="field">
+      <label>状态栏时间</label>
+      <input type="text" id="statusTime" value="9:12">
+    </div>
+    <div class="field">
+      <label>导出格式</label>
+      <select id="formatSelect">
+        <option value="image/jpeg" selected>JPG（推荐·接近真机）</option>
+        <option value="image/png">PNG（无损）</option>
+      </select>
+    </div>
+    <input type="hidden" id="scaleSelect" value="3">
+  </div>
+  <div class="row2">
+    <div class="field">
+      <label>截图当天（决定"今天/昨天/星期X"）</label>
+      <input type="date" id="captureDate">
+    </div>
+    <div class="field">
+      <label>时间戳间隔（分钟）</label>
+      <input type="text" id="timeThreshold" value="5">
+    </div>
+  </div>
+  <label class="switch" style="margin-bottom:8px">
+    <input type="checkbox" id="longMode"> 长图模式（整段合成一张）
+  </label>
+
+  <h2>
+    群聊设置
+    <label class="switch" style="font-weight:400">
+      <input type="checkbox" id="groupEnabled"> 启用群聊
+    </label>
+  </h2>
+  <div class="rule-box">
+    <b>昵称命名规则（重要）</b><br>
+    微信昵称应接近真实：<b>只带必要信息，不要堆砌职称</b>。<br>
+    ✅ 推荐：<code>陈科长</code> <code>社区李姐</code> <code>吴-施工</code> <code>李主任（街道）</code> <code>老周</code> <code>小王</code><br>
+    ❌ 避免：<code>陈科长（某某街道办）</code> <code>周工（某某科技）</code> <code>赵工（某某科技）</code><br>
+    <span class="rule-note">说明：真实微信里同事之间不会在昵称里写公司全称；施工方常写“姓名-工种”；社区人员常写“社区+姓+姐/哥”。</span>
+  </div>
+  <div id="groupBox" class="hidden">
+    <div class="field">
+      <label>群名称</label>
+      <input type="text" id="groupName" value="项目沟通群">
+    </div>
+    <div class="field">
+      <label>群成员（点击头像可更换）</label>
+      <div class="member-list" id="memberList"></div>
+      <div class="btn-row">
+        <button class="btn btn-secondary btn-sm" onclick="addMember()">+ 添加成员</button>
+        <button class="btn btn-secondary btn-sm" onclick="pickAvatarForMember()">改选中头像</button>
+      </div>
+      <div class="avatar-picker" id="memberAvatarPicker" style="margin-top:6px"></div>
+    </div>
+  </div>
+
+  <div id="singleBox">
+    <h2>对方（业主）</h2>
+    <div class="field">
+      <label>昵称 / 备注</label>
+      <input type="text" id="opponentName" value="陈科长">
+      <div class="avatar-picker" id="opponentAvatars"></div>
+    </div>
+    <h2>我方</h2>
+    <div class="field">
+      <label>昵称 / 备注</label>
+      <input type="text" id="myName" value="老周">
+      <div class="avatar-picker" id="myAvatars"></div>
+    </div>
+  </div>
+
+  <h2>消息列表 <span class="tag" id="msgCount">0</span></h2>
+  <div class="msg-list" id="msgList"></div>
+  <div class="btn-row">
+    <button class="btn btn-secondary btn-sm" onclick="addText('other')">+ 对方</button>
+    <button class="btn btn-secondary btn-sm" onclick="addText('me')">+ 我方</button>
+    <button class="btn btn-secondary btn-sm" onclick="addVoice()">+ 语音</button>
+    <button class="btn btn-secondary btn-sm" onclick="addTransfer()">+ 转账</button>
+  </div>
+  <div class="tip" style="margin-top:6px">
+    消息列表里点「改」可修改内容、发送人和时间。时间按真实微信规则自动显示（今天只显示时刻、昨天、星期X、X月X日）。
+  </div>
+
+  <h2>截图范围</h2>
+  <div class="row2">
+    <div class="field">
+      <label>首条消息序号（从该条开始截）</label>
+      <input type="text" id="scrollToMsg" placeholder="留空=默认">
+    </div>
+    <div class="field">
+      <label>当前预览定位</label>
+      <select id="scrollPreset">
+        <option value="">默认（最新消息）</option>
+        <option value="top">从消息 1 开始</option>
+        <option value="custom">自定义序号</option>
+      </select>
+    </div>
+  </div>
+
+  <h2>一键生成</h2>
+  <button class="btn btn-primary btn-block" id="btnDownloadOne" onclick="downloadCurrent()">生成并下载当前截图</button>
+  <button class="btn btn-blue btn-block" style="margin-top:8px" id="btnDownloadAll" onclick="downloadAll()">生成并下载全部（按段切分）</button>
+  <div class="btn-row">
+    <button class="btn btn-secondary btn-sm" onclick="exportJSON()">导出JSON</button>
+    <button class="btn btn-secondary btn-sm" onclick="importJSON()">导入JSON</button>
+  </div>
+  <div class="status-line" id="statusLine"></div>
+
+  <h2>预设项目</h2>
+  <div class="btn-row">
+    <button class="btn btn-secondary btn-sm" onclick="loadPreset('preset1')">预设 1（群聊）</button>
+    <button class="btn btn-secondary btn-sm" onclick="loadPreset('preset2')">预设 2（群聊）</button>
+    <button class="btn btn-secondary btn-sm" onclick="loadPreset('preset3')">预设 3（单聊）</button>
+  </div>
+  <div class="tip">
+    用本地服务器打开（<code>python -m http.server 8000</code>）才能加载预设和头像；直接双击只能手动填写。
+  </div>
+</div>
+
+<div class="preview">
+  <div class="preview-toolbar">
+    <span class="zoom">
+      缩放
+      <input type="range" id="zoomRange" min="25" max="100" value="55" oninput="applyZoom()">
+      <span id="zoomLabel">55%</span>
+    </span>
+    <button class="btn btn-secondary btn-sm" onclick="refreshPreview()">刷新预览</button>
+    <span style="color:#98a2ad" id="sizeLabel"></span>
+  </div>
+  <div id="previewBox"></div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<script src="js/render.js"></script>
+<script src="js/canvas-render.js"></script>
+<script src="js/desktop-render.js"></script>
+<script>
+/* ================= 状态 ================= */
+let config = {
+  title: '聊天记录',
+  device: 'huawei-mate60',
+  statusBarTime: '9:12',
+  captureDate: '2025-09-20',
+  timeThresholdMin: 5,
+  longMode: false,
+  group: { enabled: false, name: '群聊', members: [] },
+  opponent: { name: '陈科长', avatar: 'avatars/scenery/scene_01_mountain.png' },
+  me: { name: '老周', avatar: 'avatars/me/my_avatar.jpg' },
+  messages: []
+};
+
+let zoom = 0.55;
+let busy = false;
+let selectedMemberIdx = -1;
+
+/* ================= 工具 ================= */
+function toast(msg, ms) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), ms || 2400);
+}
+function setStatus(s) { document.getElementById('statusLine').textContent = s || ''; }
+function pad2(n) { return String(n).padStart(2, '0'); }
+
+/* ================= 初始化 ================= */
+const deviceSelect = document.getElementById('deviceSelect');
+Object.entries(WXCanvas.DEVICES).forEach(([k, d]) => {
+  const o = document.createElement('option');
+  o.value = k;
+  o.textContent = d.name + '  (' + d.pxW + '×' + d.pxH + ')';
+  deviceSelect.appendChild(o);
+});
+deviceSelect.value = config.device;
+deviceSelect.onchange = () => { config.device = deviceSelect.value; refreshPreview(); };
+const modeSelect = document.getElementById('modeSelect');
+if (modeSelect) {
+  modeSelect.value = config.mode || 'mobile';
+  modeSelect.onchange = () => { config.mode = modeSelect.value; refreshPreview(); };
+}
+
+document.getElementById('captureDate').value = config.captureDate;
+
+/* ================= 头像选择器 ================= */
+function buildAvatarPicker(boxId, target, onPick) {
+  const box = document.getElementById(boxId);
+  box.innerHTML = '';
+  WXRenderer.getAvatarList().forEach(a => {
+    const img = document.createElement('img');
+    img.src = a.path;
+    img.title = a.label;
+    img.loading = 'lazy';
+    if (target && target.avatar === a.path) img.classList.add('selected');
+    img.onclick = () => {
+      if (onPick) { onPick(a.path); }
+      else if (target) { target.avatar = a.path; }
+      box.querySelectorAll('img').forEach(i => i.classList.remove('selected'));
+      img.classList.add('selected');
+      refreshPreview();
+      if (document.getElementById('groupEnabled').checked) renderMembers();
+    };
+    box.appendChild(img);
+  });
+}
+
+/* ================= 群成员 ================= */
+function ensureGroup() {
+  if (!config.group) config.group = { enabled: false, name: '群聊', members: [] };
+  if (!Array.isArray(config.group.members)) config.group.members = [];
+  return config.group;
+}
+
+function renderMembers() {
+  const g = ensureGroup();
+  const box = document.getElementById('memberList');
+  box.innerHTML = '';
+  g.members.forEach((m, i) => {
+    const row = document.createElement('div');
+    row.className = 'member-item';
+    row.style.cursor = 'pointer';
+    row.onclick = (e) => {
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'BUTTON') return;
+      selectedMemberIdx = i;
+      renderMembers();
+    };
+    if (i === selectedMemberIdx) row.style.background = '#f0fbf4';
+
+    const img = document.createElement('img');
+    img.src = m.avatar || '';
+    img.onclick = (e) => { e.stopPropagation(); selectedMemberIdx = i; renderMembers(); };
+
+    const inp = document.createElement('input');
+    inp.value = m.name || '';
+    inp.placeholder = '成员昵称';
+    inp.oninput = () => { m.name = inp.value; refreshPreview(); };
+
+    row.appendChild(img);
+    row.appendChild(inp);
+
+    if (m.isMe) {
+      const tag = document.createElement('span');
+      tag.className = 'me-tag';
+      tag.textContent = '我';
+      row.appendChild(tag);
+    } else {
+      const btn = document.createElement('button');
+      btn.textContent = '设为我';
+      btn.onclick = (e) => {
+        e.stopPropagation();
+        g.members.forEach(x => x.isMe = false);
+        m.isMe = true;
+        renderMembers(); refreshPreview();
+      };
+      row.appendChild(btn);
+    }
+
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = '删';
+    del.onclick = (e) => {
+      e.stopPropagation();
+      if (g.members.filter(x => x.isMe).length <= 1 && m.isMe) {
+        toast('至少要保留一个"我"'); return;
+      }
+      g.members.splice(i, 1);
+      selectedMemberIdx = -1;
+      renderMembers(); refreshPreview();
+    };
+    row.appendChild(del);
+
+    box.appendChild(row);
+  });
+}
+
+function addMember() {
+  const g = ensureGroup();
+  const name = prompt('新成员昵称：', '王工');
+  if (!name) return;
+  g.members.push({
+    name: name,
+    avatar: 'avatars/scenery/scene_03_lake.png',
+    isMe: false
+  });
+  selectedMemberIdx = g.members.length - 1;
+  renderMembers(); refreshPreview();
+}
+
+function pickAvatarForMember() {
+  if (selectedMemberIdx < 0) { toast('请先点击左侧列表中的成员选中'); return; }
+  toast('请在下方头像格中点击选择头像');
+  const g = ensureGroup();
+  buildAvatarPicker('memberAvatarPicker', null, (path) => {
+    g.members[selectedMemberIdx].avatar = path;
+    renderMembers();
+  });
+}
+
+/* ================= 消息列表 ================= */
+function renderMsgList() {
+  const list = document.getElementById('msgList');
+  list.innerHTML = '';
+  document.getElementById('msgCount').textContent = config.messages.length;
+
+  const g = ensureGroup();
+  const useGroup = g.enabled && g.members.length;
+
+  config.messages.forEach((m, i) => {
+    const item = document.createElement('div');
+    item.className = 'msg-item';
+
+    let cls = 'time', label = '时间', who = '', txt = '';
+    if (m.type === 'text') {
+      cls = m.from === 'me' ? 'mine' : 'other';
+      label = m.from === 'me' ? '我方' : '对方';
+      txt = m.text;
+    } else if (m.type === 'voice') {
+      cls = m.from === 'me' ? 'mine' : 'other';
+      label = '语音'; txt = (m.duration || 3) + '秒';
+    } else if (m.type === 'transfer') {
+      cls = m.from === 'me' ? 'mine' : 'other';
+      label = '转账'; txt = '¥' + m.amount;
+    } else if (m.type === 'image') {
+      cls = m.from === 'me' ? 'mine' : 'other';
+      label = '图片'; txt = m.image || '';
+    } else {
+      txt = m.text || '';
+    }
+
+    if (useGroup && m.fromId) {
+      const mem = g.members.find(x => x.name === m.fromId) ||
+                  g.members.find(x => (x.id || x.name) === m.fromId);
+      if (mem) { who = mem.name; cls = mem.isMe ? 'mine' : 'other'; label = mem.isMe ? '我方' : '对方'; }
+    }
+
+    if (m.time) {
+      txt = '[' + String(m.time).slice(5, 16).replace('T', ' ') + '] ' + txt;
+    }
+
+    const badge = document.createElement('span');
+    badge.className = 'badge ' + cls;
+    badge.textContent = label;
+
+    item.appendChild(badge);
+
+    if (who) {
+      const w = document.createElement('span');
+      w.className = 'who';
+      w.textContent = who;
+      item.appendChild(w);
+    }
+
+    const span = document.createElement('span');
+    span.className = 'txt';
+    span.textContent = txt;
+    item.appendChild(span);
+
+    const up = document.createElement('button');
+    up.textContent = '↑';
+    up.onclick = () => {
+      if (i > 0) {
+        [config.messages[i - 1], config.messages[i]] = [config.messages[i], config.messages[i - 1]];
+        renderMsgList(); refreshPreview();
+      }
+    };
+    const edit = document.createElement('button');
+    edit.textContent = '改';
+    edit.onclick = () => editMessage(i);
+    const del = document.createElement('button');
+    del.className = 'del';
+    del.textContent = '删';
+    del.onclick = () => { config.messages.splice(i, 1); renderMsgList(); refreshPreview(); };
+
+    item.append(up, edit, del);
+    list.appendChild(item);
+  });
+}
+
+/* ================= 消息编辑 ================= */
+function toLocalInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d)) return '';
+  return d.getFullYear() + '-' + pad2(d.getMonth() + 1) + '-' + pad2(d.getDate()) +
+         'T' + pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+}
+
+function editMessage(i) {
+  const m = config.messages[i];
+  const g = ensureGroup();
+  const useGroup = g.enabled && g.members.length;
+
+  // 1) 发送人
+  if (m.type !== 'time' && useGroup) {
+    const names = g.members.map((x, k) => (k + 1) + '.' + x.name + (x.isMe ? '(我)' : '')).join('\n');
+    const pick = prompt('选择发送人（输入序号）：\n' + names, '1');
+    const idx = parseInt(pick, 10) - 1;
+    if (idx >= 0 && idx < g.members.length) {
+      const mem = g.members[idx];
+      m.fromId = mem.name;
+      m.from = mem.isMe ? 'me' : 'other';
+    }
+  }
+
+  // 2) 内容
+  if (m.type === 'text') {
+    const t = prompt('修改内容：', m.text);
+    if (t === null) return;
+    m.text = t;
+  } else if (m.type === 'voice') {
+    const d = prompt('语音时长（秒）：', m.duration || 3);
+    if (d === null) return;
+    m.duration = parseInt(d, 10) || 3;
+  } else if (m.type === 'transfer') {
+    const a = prompt('转账金额：', m.amount);
+    if (a === null) return;
+    m.amount = a;
+  }
+
+  // 3) 时间
+  const cur = toLocalInput(m.time);
+  const t = prompt('时间（格式 2025-09-20T14:30，留空=不显示时间）：', cur);
+  if (t !== null) {
+    m.time = t ? t.replace(' ', 'T') : undefined;
+  }
+
+  renderMsgList(); refreshPreview();
+}
+
+function newMsgTime() {
+  // 用最后一条消息时间 + 几分钟，或基准日期
+  const last = [...config.messages].reverse().find(x => x.time);
+  const base = last ? new Date(last.time) : new Date((config.captureDate || '2025-09-20') + 'T09:00');
+  if (isNaN(base)) return null;
+  base.setMinutes(base.getMinutes() + 3 + Math.floor(Math.random() * 5));
+  return base.getFullYear() + '-' + pad2(base.getMonth() + 1) + '-' + pad2(base.getDate()) +
+         'T' + pad2(base.getHours()) + ':' + pad2(base.getMinutes());
+}
+
+function askTime(defaultVal) {
+  return prompt('时间（格式 2025-09-20T14:30，留空=不显示时间）：', defaultVal || newMsgTime() || '');
+}
+
+function addText(from) {
+  const text = prompt(from === 'me' ? '输入我方消息：' : '输入对方消息：');
+  if (!text) return;
+  const msg = { type: 'text', from: from, text: text };
+  const g = ensureGroup();
+
+  if (g.enabled && g.members.length) {
+    if (from === 'me') {
+      const me = g.members.find(x => x.isMe);
+      if (me) msg.fromId = me.name;
+    } else {
+      const names = g.members.filter(x => !x.isMe).map((x, k) => (k + 1) + '.' + x.name).join('\n');
+      if (names) {
+        const pick = prompt('选择发送人（输入序号）：\n' + names, '1');
+        const idx = parseInt(pick, 10) - 1;
+        const others = g.members.filter(x => !x.isMe);
+        if (idx >= 0 && idx < others.length) msg.fromId = others[idx].name;
+      }
+    }
+  }
+
+  const t = askTime();
+  if (t) msg.time = t;
+  config.messages.push(msg);
+  renderMsgList(); refreshPreview();
+}
+
+function addVoice() {
+  const dur = prompt('语音时长（秒）：', '5');
+  if (!dur) return;
+  const from = confirm('确定= 我方\n取消= 对方') ? 'me' : 'other';
+  const msg = { type: 'voice', from: from, duration: parseInt(dur, 10) || 3 };
+  const g = ensureGroup();
+  if (g.enabled && g.members.length) {
+    if (from === 'me') {
+      const me = g.members.find(x => x.isMe);
+      if (me) msg.fromId = me.name;
+    } else {
+      const others = g.members.filter(x => !x.isMe);
+      if (others.length) {
+        const names = others.map((x, k) => (k + 1) + '.' + x.name).join('\n');
+        const pick = prompt('选择发送人（序号）：\n' + names, '1');
+        const idx = parseInt(pick, 10) - 1;
+        if (idx >= 0 && idx < others.length) msg.fromId = others[idx].name;
+      }
+    }
+  }
+  const t = askTime();
+  if (t) msg.time = t;
+  config.messages.push(msg);
+  renderMsgList(); refreshPreview();
+}
+
+function addTransfer() {
+  const amt = prompt('转账金额：', '1000.00');
+  if (!amt) return;
+  const from = confirm('确定= 我方\n取消= 对方') ? 'me' : 'other';
+  const msg = { type: 'transfer', from: from, amount: amt, note: '转账' };
+  const g = ensureGroup();
+  if (g.enabled && g.members.length) {
+    if (from === 'me') {
+      const me = g.members.find(x => x.isMe);
+      if (me) msg.fromId = me.name;
+    }
+  }
+  const t = askTime();
+  if (t) msg.time = t;
+  config.messages.push(msg);
+  renderMsgList(); refreshPreview();
+}
+
+/* ================= 预览 ================= */
+let previewTimer = null;
+function refreshPreview() {
+  clearTimeout(previewTimer);
+  previewTimer = setTimeout(doPreview, 130);
+}
+
+async function doPreview() {
+  syncInputs();
+  const box = document.getElementById('previewBox');
+  try {
+    const isDesktop = config.mode === 'desktop';
+    const canvas = isDesktop
+      ? await WXDesktop.render(config)
+      : await WXCanvas.render(config, 2);
+    box.innerHTML = '';
+    if (isDesktop) {
+      canvas.style.width = Math.round(1100 * zoom * 0.85) + 'px';
+    } else {
+      const dev = WXCanvas.DEVICES[config.device] || WXCanvas.DEVICES['iphone-14pro'];
+      canvas.style.width = Math.round(dev.w * zoom) + 'px';
+    }
+    box.appendChild(canvas);
+    document.getElementById('sizeLabel').textContent =
+      (isDesktop ? '电脑端 ' : '真机像素 ') + canvas.width + ' × ' + canvas.height;
+  } catch (e) {
+    box.innerHTML = '<div style="color:#c33;padding:20px">预览失败：' + e.message + '</div>';
+  }
+}
+
+function applyZoom() {
+  zoom = parseInt(document.getElementById('zoomRange').value, 10) / 100;
+  document.getElementById('zoomLabel').textContent = Math.round(zoom * 100) + '%';
+  const c = document.querySelector('#previewBox canvas');
+  if (c) {
+    const dev = WXCanvas.DEVICES[config.device] || WXCanvas.DEVICES['iphone-14pro'];
+    c.style.width = Math.round(dev.w * zoom) + 'px';
+  }
+}
+
+function syncInputs() {
+  config.opponent.name = document.getElementById('opponentName').value;
+  config.me.name = document.getElementById('myName').value;
+  config.statusBarTime = document.getElementById('statusTime').value;
+  config.captureDate = document.getElementById('captureDate').value;
+  config.timeThresholdMin = parseInt(document.getElementById('timeThreshold').value, 10) || 5;
+  config.longMode = document.getElementById('longMode').checked;
+  config.device = deviceSelect.value;
+  const modeEl = document.getElementById('modeSelect');
+  if (modeEl) {
+    config.mode = modeEl.value;
+    document.getElementById('deviceField').style.display =
+      config.mode === 'desktop' ? 'none' : '';
+  }
+
+  const g = ensureGroup();
+  g.enabled = document.getElementById('groupEnabled').checked;
+  g.name = document.getElementById('groupName').value;
+
+  const preset = document.getElementById('scrollPreset').value;
+  const custom = document.getElementById('scrollToMsg').value.trim();
+  if (custom !== '') {
+    const n = parseInt(custom, 10);
+    config.scrollToMsg = isNaN(n) ? null : Math.max(0, n - 1);
+  } else if (preset === 'top') {
+    config.scrollToMsg = 0;
+  } else {
+    config.scrollToMsg = null;
+  }
+}
+
+/* ================= 下载 ================= */
+function getFormat() { return document.getElementById('formatSelect').value; }
+function safeName(s) { return String(s || '聊天截图').replace(/[\\/:*?"<>|]/g, '_').slice(0, 40); }
+
+async function downloadCurrent() {
+  if (busy) return;
+  busy = true;
+  const btn = document.getElementById('btnDownloadOne');
+  btn.disabled = true;
+  const old = btn.textContent;
+  btn.textContent = '生成中…';
+  setStatus('正在生成…');
+  try {
+    syncInputs();
+    const name = safeName(config.title || config.opponent.name) + '.png';
+    const r = await WXCanvas.download(config, name, 3, getFormat());
+    setStatus('已下载：' + name + '（' + r.width + '×' + r.height + '）');
+    toast('已下载 ' + name);
+  } catch (e) {
+    setStatus('失败：' + e.message);
+    toast('生成失败：' + e.message);
+  } finally {
+    btn.textContent = old;
+    btn.disabled = false;
+    busy = false;
+  }
+}
+
+async function downloadAll() {
+  if (busy) return;
+  syncInputs();
+  const dataMsgs = config.messages.filter(m => m.type !== 'time' && m.type !== 'system');
+  if (dataMsgs.length < 2) {
+    toast('消息太少，改为下载单张');
+    return downloadCurrent();
+  }
+
+  // 询问切几段
+  const def = Math.min(5, dataMsgs.length);
+  const ask = prompt('切成几张截图？（建议 3~6）', String(def));
+  if (ask === null) return;
+  let count = parseInt(ask, 10);
+  if (isNaN(count) || count < 1) count = def;
+  count = Math.min(count, dataMsgs.length);
+
+  busy = true;
+  const btn = document.getElementById('btnDownloadAll');
+  btn.disabled = true;
+  const old = btn.textContent;
+
+  try {
+    // 计算每条"数据消息"在原始数组中的索引
+    const indices = [];
+    config.messages.forEach((m, i) => {
+      if (m.type !== 'time' && m.type !== 'system') indices.push(i);
+    });
+
+    const anchors = WXCanvas.planShots(config, count);
+    const base = safeName(config.title || config.opponent.name);
+
+    for (let k = 0; k < anchors.length; k++) {
+      btn.textContent = '生成中 ' + (k + 1) + '/' + anchors.length + '…';
+      setStatus('正在生成第 ' + (k + 1) + ' / ' + anchors.length + ' 张…');
+      const cfg = Object.assign({}, config, {
+        longMode: false,
+        scrollToMsg: indices[anchors[k]]
+      });
+      await WXCanvas.download(cfg, base + '_' + String(k + 1).padStart(2, '0'), 3, getFormat());
+      await new Promise(r => setTimeout(r, 420));
+    }
+    setStatus('已下载 ' + anchors.length + ' 张截图');
+    toast('已下载 ' + anchors.length + ' 张截图');
+  } catch (e) {
+    setStatus('失败：' + e.message);
+    toast('生成失败：' + e.message);
+  } finally {
+    btn.textContent = old;
+    btn.disabled = false;
+    busy = false;
+  }
+}
+
+/* ================= JSON ================= */
+function exportJSON() {
+  syncInputs();
+  const blob = new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = safeName(config.title) + '.json';
+  a.click();
+  toast('JSON 已导出');
+}
+
+function importJSON() {
+  const input = document.createElement('input');
+  input.type = 'file';
+  input.accept = '.json';
+  input.onchange = e => {
+    const f = e.target.files[0];
+    if (!f) return;
+    const reader = new FileReader();
+    reader.onload = ev => {
+      try {
+        applyConfig(JSON.parse(ev.target.result));
+        toast('JSON 已导入');
+      } catch (err) {
+        toast('JSON 解析失败：' + err.message);
+      }
+    };
+    reader.readAsText(f);
+  };
+  input.click();
+}
+
+function applyConfig(cfg) {
+  config = Object.assign({
+    title: '聊天记录', device: 'huawei-mate60', statusBarTime: '9:12',
+    captureDate: '2025-09-20', timeThresholdMin: 5, longMode: false,
+    group: { enabled: false, name: '群聊', members: [] },
+    opponent: { name: '', avatar: '' }, me: { name: '', avatar: '' }, messages: []
+  }, cfg);
+
+  if (!config.group) config.group = { enabled: false, name: '群聊', members: [] };
+  if (!Array.isArray(config.group.members)) config.group.members = [];
+
+  document.getElementById('opponentName').value = (config.opponent && config.opponent.name) || '';
+  document.getElementById('myName').value = (config.me && config.me.name) || '';
+  document.getElementById('statusTime').value = config.statusBarTime || '9:12';
+  document.getElementById('captureDate').value = config.captureDate || '';
+  document.getElementById('timeThreshold').value = config.timeThresholdMin || 5;
+  document.getElementById('longMode').checked = !!config.longMode;
+  document.getElementById('groupEnabled').checked = !!config.group.enabled;
+  document.getElementById('groupName').value = config.group.name || '群聊';
+  document.getElementById('scrollToMsg').value = '';
+  document.getElementById('scrollPreset').value = '';
+
+  deviceSelect.value = config.device;
+  if (document.getElementById('modeSelect')) {
+    document.getElementById('modeSelect').value = config.mode || 'mobile';
+  }
+  toggleGroupUI();
+
+  buildAvatarPicker('opponentAvatars', config.opponent || {});
+  buildAvatarPicker('myAvatars', config.me || {});
+  renderMembers();
+  renderMsgList();
+  refreshPreview();
+}
+
+function toggleGroupUI() {
+  const on = document.getElementById('groupEnabled').checked;
+  document.getElementById('groupBox').classList.toggle('hidden', !on);
+  document.getElementById('singleBox').classList.toggle('hidden', on);
+}
+
+async function loadPreset(name) {
+  const LABELS = { preset1: '预设1', preset2: '预设2', preset3: '预设3' };
+  try {
+    const res = await fetch('configs/' + name + '.json');
+    if (!res.ok) throw new Error('文件不存在');
+    const cfg = await res.json();
+    cfg.title = LABELS[name] || name;
+    applyConfig(cfg);
+    toast('已加载预设：' + (LABELS[name] || name));
+  } catch (e) {
+    toast('加载失败：' + e.message + '（需用本地服务器打开）', 3600);
+  }
+}
+
+/* ================= 事件 ================= */
+['opponentName', 'myName', 'statusTime', 'captureDate', 'timeThreshold']
+  .forEach(id => { document.getElementById(id).oninput = refreshPreview; });
+
+document.getElementById('longMode').onchange = refreshPreview;
+
+document.getElementById('groupEnabled').onchange = () => {
+  toggleGroupUI();
+  const g = ensureGroup();
+  if (document.getElementById('groupEnabled').checked && g.members.length === 0) {
+    // 默认生成一组群成员
+    g.members = [
+      { name: '陈科长', avatar: 'avatars/scenery/scene_01_mountain.png', isMe: false },
+      { name: '老周', avatar: 'avatars/me/my_avatar.jpg', isMe: true },
+      { name: '吴-施工', avatar: 'avatars/cartoon/cartoon_02_dog.png', isMe: false }
+    ];
+    renderMembers();
+  }
+  refreshPreview();
+};
+
+document.getElementById('groupName').oninput = refreshPreview;
+
+document.getElementById('scrollPreset').onchange = () => {
+  const v = document.getElementById('scrollPreset').value;
+  if (v === 'top') document.getElementById('scrollToMsg').value = '';
+  refreshPreview();
+};
+document.getElementById('scrollToMsg').oninput = refreshPreview;
+
+/* ================= 启动 ================= */
+buildAvatarPicker('opponentAvatars', config.opponent);
+buildAvatarPicker('myAvatars', config.me);
+
+config.messages = [
+  { type: 'text', from: 'other', time: '2025-09-20T09:12',
+    text: '张工你好，我们这个项目准备启动了，你看什么时候方便过来看看现场？' },
+  { type: 'text', from: 'me', time: '2025-09-20T09:15',
+    text: '好的李主任，我明天上午先过去现场踏勘一下，顺便确认下具体需要装几个点位。' },
+  { type: 'text', from: 'other', time: '2025-09-20T09:18',
+    text: '行，我让小王接待你，你先看下我们给的规划图。' },
+  { type: 'text', from: 'me', time: '2025-09-20T09:20',
+    text: '收到，明天看完后我把点位方案和报价清单整理出来发给您审核。' }
+];
+
+renderMembers();
+renderMsgList();
+doPreview();
+
+if (location.protocol.startsWith('http')) {
+  loadPreset('biquan').catch(() => {});
+}
+</script>
+</body>
+</html>
