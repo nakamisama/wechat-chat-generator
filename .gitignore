@@ -13,3 +13,14 @@ __pycache__/
 
 # 未被配置引用的历史素材（本地归档，不入库）
 assets/_archive/
+
+# 项目配置：含真实人员/项目信息，只保留本地
+configs/*.json
+!configs/_template.json
+
+# 项目专用头像（从客户截图裁切，含真实头像）
+avatars/projects/
+
+# 项目现场照片（含真实场景）
+assets/gen_*.jpg
+assets/gen_*.png
