@@ -264,7 +264,8 @@
 
     const contentH = y + 18;
     const areaTop = DL.titleBarH;
-    const availH = H - areaTop - DL.inputH;
+    const inputH = config.hideInputBar ? 0 : DL.inputH;
+    const availH = H - areaTop - inputH;
 
     let offset;
     if (config.forceOffset != null) {
@@ -862,7 +863,8 @@
     ctx.fillRect(0, 0, WW, HH);
 
     const areaTop = DL.titleBarH;
-    const areaH = HH - areaTop - DL.inputH;
+    const inputH = config.hideInputBar ? 0 : DL.inputH;
+    const areaH = HH - areaTop - inputH;
 
     // 聊天区背景：浅灰（参考图 #f5f5f5）
     ctx.fillStyle = '#f5f5f5';
@@ -878,7 +880,7 @@
 
     drawTitleBar(ctx, lay, config);
     drawFloatButtons(ctx, lay);
-    drawInputBar(ctx, lay);
+    if (!config.hideInputBar) drawInputBar(ctx, lay);
 
     return canvas;
   }
